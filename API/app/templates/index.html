@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>KnowinglyX AI OS</title>
+</head>
+
+<body>
+
+<h1>KnowinglyX AI Career Agent</h1>
+
+<input
+    id="resume"
+    type="file"
+    accept=".pdf">
+
+<br><br>
+
+<textarea
+    id="jd"
+    rows="12"
+    cols="80"
+    placeholder="Paste Job Description"></textarea>
+
+<br><br>
+
+<button onclick="analyze()">
+    Analyze Resume
+</button>
+
+<pre id="result"></pre>
+
+<script>
+
+async function analyze() {
+
+    const fileInput = document.getElementById("resume");
+    const jd = document.getElementById("jd").value;
+
+    if (fileInput.files.length === 0) {
+        alert("Select PDF");
+        return;
+    }
+
+    if (jd.trim() === "") {
+        alert("Paste Job Description");
+        return;
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", fileInput.files[0]);
+    formData.append("job_description", jd);
+
+    console.log("========== FORMDATA ==========");
+
+    for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+    }
+
+    console.log("==============================");
+
+    const response = await fetch("/career/analyze", {
+        method: "POST",
+        body: formData
+    });
+
+    const json = await response.json();
+
+    document.getElementById("result").textContent =
+        JSON.stringify(json, null, 2);
+
+}
+
+</script>
+
+</body>
+
+</html>
