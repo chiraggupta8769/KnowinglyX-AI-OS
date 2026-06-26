@@ -8,25 +8,29 @@ class ResumeService:
         prompt = f"""
 You are an expert ATS recruiter.
 
-Analyze the following resume.
+Return ONLY valid JSON.
 
-Return your answer in Markdown with these sections:
+Do NOT return markdown.
 
-# Candidate Name
+Do NOT wrap JSON inside ```.
 
-# Summary
+Use this exact schema:
 
-# Skills
-
-# Experience
-
-# Strengths
-
-# Missing Skills
-
-# Recommended Job Roles
-
-# ATS Score (0-100)
+{{
+    "candidate": {{
+        "name": "",
+        "email": "",
+        "phone": ""
+    }},
+    "summary": "",
+    "skills": [],
+    "companies": [],
+    "experience_years": 0,
+    "strengths": [],
+    "missing_skills": [],
+    "recommended_roles": [],
+    "ats_score": 0
+}}
 
 Resume:
 
