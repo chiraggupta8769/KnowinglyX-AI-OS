@@ -3,8 +3,7 @@ from app.services.ollama_service import ollama_service
 
 class MatchService:
 
-    def match(self, resume_json: dict, job_json: dict):
-
+    async def match(self, resume_json: dict, job_json: dict) -> str:
         prompt = f"""
 You are an ATS recruiter.
 
@@ -30,11 +29,7 @@ Job:
 
 {job_json}
 """
-
-        return ollama_service.chat(
-            prompt=prompt,
-            model="qwen3:8b"
-        )
+        return await ollama_service.chat(prompt=prompt, model="qwen3:8b")
 
 
 match_service = MatchService()

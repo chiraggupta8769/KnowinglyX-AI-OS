@@ -3,8 +3,7 @@ from app.services.ollama_service import ollama_service
 
 class ResumeService:
 
-    def analyze_resume(self, resume_text: str):
-
+    async def analyze_resume(self, resume_text: str) -> str:
         prompt = f"""
 You are an expert ATS recruiter.
 
@@ -36,11 +35,7 @@ Resume:
 
 {resume_text}
 """
-
-        return ollama_service.chat(
-            prompt=prompt,
-            model="qwen3:8b"
-        )
+        return await ollama_service.chat(prompt=prompt, model="qwen3:8b")
 
 
 resume_service = ResumeService()

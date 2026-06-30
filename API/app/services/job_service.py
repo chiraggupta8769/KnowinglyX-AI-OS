@@ -3,8 +3,7 @@ from app.services.ollama_service import ollama_service
 
 class JobService:
 
-    def analyze_job(self, job_description: str):
-
+    async def analyze_job(self, job_description: str) -> str:
         prompt = f"""
 You are an expert technical recruiter.
 
@@ -28,11 +27,7 @@ Job Description:
 
 {job_description}
 """
-
-        return ollama_service.chat(
-            prompt=prompt,
-            model="qwen3:8b"
-        )
+        return await ollama_service.chat(prompt=prompt, model="qwen3:8b")
 
 
 job_service = JobService()

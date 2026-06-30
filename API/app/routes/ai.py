@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Query
-from app.services.ollama_service import ollama_service
+from fastapi import APIRouter, Query, HTTPException
+from app.services.ollama_service import ollama_service, OllamaError
 
 router = APIRouter(
     prefix="/ai",
@@ -8,21 +8,19 @@ router = APIRouter(
 
 
 @router.get("")
-def chat(
+async def chat(
     prompt: str = Query(...),
-    model: str = Query(
-        default="gemma3:4b",
-        description="Ollama model to use"
-    )
+    model: str = Query(default="gemma3:4b", description="Ollama model to use"),
 ):
-    response = ollama_service.chat(
-        prompt=prompt,
-        model=model
-    )
+    try:
+        response = await ollama_service.chat(prompt=prompt, model=model)
+    except OllamaError as exc:
+        status = 503 if exc.permanent else 504
+        raise HTTPException(status_code=status, detail=str(exc))
 
     return {
         "success": True,
         "model": model,
         "prompt": prompt,
-        "response": response
+        "response": response,
     }

@@ -3,8 +3,7 @@ from app.services.ollama_service import ollama_service
 
 class CoverLetterService:
 
-    def generate(self, resume: dict, job: dict):
-
+    async def generate(self, resume: dict, job: dict) -> str:
         prompt = f"""
 You are an expert recruiter.
 
@@ -25,11 +24,7 @@ Job:
 
 {job}
 """
-
-        return ollama_service.chat(
-            prompt=prompt,
-            model="qwen3:8b"
-        )
+        return await ollama_service.chat(prompt=prompt, model="qwen3:8b")
 
 
 cover_letter_service = CoverLetterService()

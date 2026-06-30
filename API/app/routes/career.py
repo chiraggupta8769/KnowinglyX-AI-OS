@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-print("=" * 60)
-print("🚀 CAREER.PY LOADED")
-print("=" * 60)
+from app.services.career_service import career_service, CareerServiceError
+from app.services.ollama_service import OllamaError
 
 router = APIRouter(
     prefix="/career",
@@ -10,11 +10,27 @@ router = APIRouter(
 )
 
 
-@router.post("/analyze")
-async def career_analyze():
-    print("🔥 /career/analyze HIT")
+class CareerAnalyzeRequest(BaseModel):
+    resume_text: str
+    job_description: str
 
-    return {
-        "success": True,
-        "message": "Career Route Working"
-    }
+
+@router.post("/analyze")
+async def career_analyze(body: CareerAnalyzeRequest):
+    try:
+        result = await career_service.analyze(
+            resume_text=body.resume_text,
+            job_description=body.job_description,
+        )
+        return {"success": True, "data": result}
+
+    except CareerServiceError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"stage": exc.stage, "error": exc.message},
+        )
+    except OllamaError as exc:
+        status = 503 if exc.permanent else 504
+        raise HTTPException(status_code=status, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
