@@ -1,9 +1,10 @@
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.match_service import match_service
+from app.services.ollama_service import OllamaError
 
 router = APIRouter(
     prefix="/match",
@@ -17,22 +18,20 @@ class MatchRequest(BaseModel):
 
 
 @router.post("/")
-def match(request: MatchRequest):
-
-    ai_response = match_service.match(
-        request.resume,
-        request.job
-    )
+async def match(request: MatchRequest):
+    try:
+        ai_response = await match_service.match(request.resume, request.job)
+    except OllamaError as exc:
+        status = 503 if exc.permanent else 504
+        raise HTTPException(status_code=status, detail=str(exc))
 
     try:
         parsed = json.loads(ai_response)
     except json.JSONDecodeError:
         return {
             "success": False,
-            "raw_response": ai_response
+            "error": "Model did not return valid JSON.",
+            "raw_response": ai_response,
         }
 
-    return {
-        "success": True,
-        "analysis": parsed
-    }
+    return {"success": True, "analysis": parsed}

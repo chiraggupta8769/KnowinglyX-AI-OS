@@ -1,9 +1,10 @@
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.job_service import job_service
+from app.services.ollama_service import OllamaError
 
 router = APIRouter(
     prefix="/jobs",
@@ -16,11 +17,12 @@ class JobRequest(BaseModel):
 
 
 @router.post("/analyze")
-def analyze_job(request: JobRequest):
-
-    ai_response = job_service.analyze_job(
-        request.job_description
-    )
+async def analyze_job(request: JobRequest):
+    try:
+        ai_response = await job_service.analyze_job(request.job_description)
+    except OllamaError as exc:
+        status = 503 if exc.permanent else 504
+        raise HTTPException(status_code=status, detail=str(exc))
 
     try:
         parsed = json.loads(ai_response)
@@ -28,10 +30,7 @@ def analyze_job(request: JobRequest):
         return {
             "success": False,
             "error": "Model did not return valid JSON.",
-            "raw_response": ai_response
+            "raw_response": ai_response,
         }
 
-    return {
-        "success": True,
-        "analysis": parsed
-    }
+    return {"success": True, "analysis": parsed}
