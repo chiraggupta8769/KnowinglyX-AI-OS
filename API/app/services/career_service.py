@@ -1,7 +1,6 @@
 """
 CareerService — chains 4 services with fail-fast error handling.
 Any stage failure returns immediately with the failing stage name and error.
-No partial results are stitched together.
 """
 from __future__ import annotations
 
@@ -13,6 +12,7 @@ from app.services.job_service import job_service
 from app.services.match_service import match_service
 from app.services.cover_letter_service import cover_letter_service
 from app.services.ollama_service import OllamaError
+from app.utils.json_tools import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,6 @@ class CareerServiceError(Exception):
 class CareerService:
 
     async def analyze(self, resume_text: str, job_description: str) -> dict:
-        """
-        Run the full career analysis pipeline.
-        Returns a dict with all stage results, or raises CareerServiceError
-        at the first failing stage.
-        """
         result: dict = {}
 
         # Stage 1 — Resume
@@ -43,12 +38,9 @@ class CareerService:
             raise CareerServiceError("resume", str(exc)) from exc
 
         try:
-            resume = json.loads(resume_raw)
+            resume = parse_llm_json(resume_raw)
         except json.JSONDecodeError as exc:
-            raise CareerServiceError(
-                "resume",
-                f"Model returned non-JSON: {resume_raw[:200]}",
-            ) from exc
+            raise CareerServiceError("resume", f"Model returned non-JSON: {resume_raw[:200]}") from exc
 
         result["resume_raw"] = resume_raw
         result["resume"] = resume
@@ -62,12 +54,9 @@ class CareerService:
             raise CareerServiceError("job", str(exc)) from exc
 
         try:
-            job = json.loads(job_raw)
+            job = parse_llm_json(job_raw)
         except json.JSONDecodeError as exc:
-            raise CareerServiceError(
-                "job",
-                f"Model returned non-JSON: {job_raw[:200]}",
-            ) from exc
+            raise CareerServiceError("job", f"Model returned non-JSON: {job_raw[:200]}") from exc
 
         result["job_raw"] = job_raw
         result["job"] = job
@@ -81,12 +70,9 @@ class CareerService:
             raise CareerServiceError("match", str(exc)) from exc
 
         try:
-            match = json.loads(match_raw)
+            match = parse_llm_json(match_raw)
         except json.JSONDecodeError as exc:
-            raise CareerServiceError(
-                "match",
-                f"Model returned non-JSON: {match_raw[:200]}",
-            ) from exc
+            raise CareerServiceError("match", f"Model returned non-JSON: {match_raw[:200]}") from exc
 
         result["match_raw"] = match_raw
         result["match"] = match

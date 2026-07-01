@@ -5,11 +5,9 @@ from pydantic import BaseModel
 
 from app.services.match_service import match_service
 from app.services.ollama_service import OllamaError
+from app.utils.json_tools import parse_llm_json
 
-router = APIRouter(
-    prefix="/match",
-    tags=["Match Engine"]
-)
+router = APIRouter(prefix="/match", tags=["Match Engine"])
 
 
 class MatchRequest(BaseModel):
@@ -26,12 +24,8 @@ async def match(request: MatchRequest):
         raise HTTPException(status_code=status, detail=str(exc))
 
     try:
-        parsed = json.loads(ai_response)
+        parsed = parse_llm_json(ai_response)
     except json.JSONDecodeError:
-        return {
-            "success": False,
-            "error": "Model did not return valid JSON.",
-            "raw_response": ai_response,
-        }
+        return {"success": False, "error": "Model did not return valid JSON.", "raw_response": ai_response}
 
     return {"success": True, "analysis": parsed}

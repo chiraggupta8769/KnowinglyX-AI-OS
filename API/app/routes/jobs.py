@@ -5,11 +5,9 @@ from pydantic import BaseModel
 
 from app.services.job_service import job_service
 from app.services.ollama_service import OllamaError
+from app.utils.json_tools import parse_llm_json
 
-router = APIRouter(
-    prefix="/jobs",
-    tags=["Jobs"]
-)
+router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 class JobRequest(BaseModel):
@@ -25,12 +23,8 @@ async def analyze_job(request: JobRequest):
         raise HTTPException(status_code=status, detail=str(exc))
 
     try:
-        parsed = json.loads(ai_response)
+        parsed = parse_llm_json(ai_response)
     except json.JSONDecodeError:
-        return {
-            "success": False,
-            "error": "Model did not return valid JSON.",
-            "raw_response": ai_response,
-        }
+        return {"success": False, "error": "Model did not return valid JSON.", "raw_response": ai_response}
 
     return {"success": True, "analysis": parsed}
