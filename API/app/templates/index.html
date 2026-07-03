@@ -1,80 +1,423 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>KnowinglyX AI OS</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KnowinglyX AI Career OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .tab-active { border-bottom: 2px solid #6366f1; color: #6366f1; }
+    .chat-bubble-user { background: #6366f1; color: white; border-radius: 18px 18px 4px 18px; }
+    .chat-bubble-ai { background: #f1f5f9; color: #1e293b; border-radius: 18px 18px 18px 4px; }
+    .typing::after { content: '▋'; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .score-ring { transition: stroke-dashoffset 1s ease; }
+    pre { white-space: pre-wrap; word-wrap: break-word; }
+  </style>
 </head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
 
-<body>
+  <!-- Header -->
+  <header class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-sm font-bold">K</div>
+      <span class="font-semibold text-lg">KnowinglyX <span class="text-indigo-400">AI Career OS</span></span>
+    </div>
+    <span class="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full">Powered by Groq · LLaMA 3</span>
+  </header>
 
-<h1>KnowinglyX AI Career Agent</h1>
+  <!-- Tabs -->
+  <div class="border-b border-gray-800 px-6">
+    <div class="flex gap-6">
+      <button onclick="switchTab('analyze')" id="tab-analyze" class="py-3 text-sm font-medium tab-active transition-colors">
+        📄 Career Analyzer
+      </button>
+      <button onclick="switchTab('chat')" id="tab-chat" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+        💬 Career Coach
+      </button>
+    </div>
+  </div>
 
-<input
-    id="resume"
-    type="file"
-    accept=".pdf">
+  <!-- ======= ANALYZE TAB ======= -->
+  <div id="pane-analyze" class="max-w-4xl mx-auto px-6 py-8">
+    <h2 class="text-2xl font-bold mb-1">Career Analyzer</h2>
+    <p class="text-gray-400 text-sm mb-8">Upload your resume and paste a job description to get your ATS score, match analysis, and a ready-to-send cover letter.</p>
 
-<br><br>
+    <div class="grid md:grid-cols-2 gap-6 mb-6">
+      <!-- Resume input -->
+      <div>
+        <label class="block text-sm font-medium mb-2">Resume <span class="text-gray-500">(PDF or paste text)</span></label>
+        <div id="drop-zone" class="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center cursor-pointer hover:border-indigo-500 transition-colors mb-3" onclick="document.getElementById('pdf-input').click()" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+          <div class="text-3xl mb-2">📎</div>
+          <div class="text-sm text-gray-400" id="drop-label">Drop PDF here or click to upload</div>
+        </div>
+        <input type="file" id="pdf-input" accept=".pdf" class="hidden" onchange="handleFile(this.files[0])"/>
+        <div class="text-xs text-gray-500 text-center mb-2">— or —</div>
+        <textarea id="resume-text" rows="8" placeholder="Paste your resume text here..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500 transition-colors"></textarea>
+      </div>
 
-<textarea
-    id="jd"
-    rows="12"
-    cols="80"
-    placeholder="Paste Job Description"></textarea>
+      <!-- Job description -->
+      <div>
+        <label class="block text-sm font-medium mb-2">Job Description</label>
+        <textarea id="job-text" rows="14" placeholder="Paste the full job description here..." class="w-full h-[calc(100%-2rem)] bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500 transition-colors"></textarea>
+      </div>
+    </div>
 
-<br><br>
+    <button onclick="runAnalysis()" id="analyze-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+      <span id="analyze-btn-text">⚡ Analyze My Career Fit</span>
+    </button>
 
-<button onclick="analyze()">
-    Analyze Resume
-</button>
+    <!-- Results -->
+    <div id="results" class="mt-8 hidden">
 
-<pre id="result"></pre>
+      <!-- Score cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div id="ats-score" class="text-3xl font-bold text-indigo-400">—</div>
+          <div class="text-xs text-gray-400 mt-1">ATS Score</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div id="match-score" class="text-3xl font-bold text-emerald-400">—</div>
+          <div class="text-xs text-gray-400 mt-1">Match Score</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div id="exp-years" class="text-3xl font-bold text-amber-400">—</div>
+          <div class="text-xs text-gray-400 mt-1">Exp. Years</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div id="matched-skills-count" class="text-3xl font-bold text-sky-400">—</div>
+          <div class="text-xs text-gray-400 mt-1">Skills Matched</div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Skills matched -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 class="font-semibold mb-3 text-emerald-400">✅ Skills Matched</h3>
+          <div id="matched-skills" class="flex flex-wrap gap-2"></div>
+        </div>
+        <!-- Skills missing -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h3 class="font-semibold mb-3 text-rose-400">❌ Skills Gap</h3>
+          <div id="missing-skills" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <!-- Resume improvements -->
+      <div id="improvements-section" class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6 hidden">
+        <h3 class="font-semibold mb-3 text-amber-400">💡 Resume Improvements</h3>
+        <ul id="improvements-list" class="text-sm text-gray-300 space-y-2"></ul>
+      </div>
+
+      <!-- Cover letter -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-indigo-400">📝 Cover Letter</h3>
+          <button onclick="copyCoverLetter()" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1 rounded-full transition-colors">Copy</button>
+        </div>
+        <pre id="cover-letter" class="text-sm text-gray-300 leading-relaxed"></pre>
+      </div>
+
+      <!-- Interview questions -->
+      <div id="interview-section" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hidden">
+        <h3 class="font-semibold mb-3 text-sky-400">🎯 Likely Interview Questions</h3>
+        <ul id="interview-list" class="text-sm text-gray-300 space-y-2"></ul>
+      </div>
+    </div>
+
+    <div id="error-box" class="hidden mt-6 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+  </div>
+
+  <!-- ======= CHAT TAB ======= -->
+  <div id="pane-chat" class="hidden flex flex-col" style="height: calc(100vh - 120px)">
+    <div class="max-w-3xl mx-auto w-full px-6 py-4 flex-1 flex flex-col">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold">AI Career Coach</h2>
+        <p class="text-gray-400 text-xs mt-1">Ask me anything about your career, job search, interviews, salary, or resume.</p>
+      </div>
+
+      <!-- Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
+        <div class="flex gap-3">
+          <div class="w-8 h-8 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold">K</div>
+          <div class="chat-bubble-ai px-4 py-3 text-sm max-w-lg">
+            Hey! I'm your AI career coach. I can help you with job search strategy, interview prep, resume tips, salary negotiation, and more. What's on your mind?
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="flex gap-3">
+        <input id="chat-input" type="text" placeholder="Ask your career coach..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-colors" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChat()}" />
+        <button onclick="sendChat()" id="chat-send-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-semibold text-sm transition-colors flex-shrink-0">Send</button>
+      </div>
+      <div id="ws-status" class="text-xs text-gray-600 mt-2 text-center"></div>
+    </div>
+  </div>
 
 <script>
-
-async function analyze() {
-
-    const fileInput = document.getElementById("resume");
-    const jd = document.getElementById("jd").value;
-
-    if (fileInput.files.length === 0) {
-        alert("Select PDF");
-        return;
-    }
-
-    if (jd.trim() === "") {
-        alert("Paste Job Description");
-        return;
-    }
-
-    const formData = new FormData();
-
-    formData.append("file", fileInput.files[0]);
-    formData.append("job_description", jd);
-
-    console.log("========== FORMDATA ==========");
-
-    for (const pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-    }
-
-    console.log("==============================");
-
-    const response = await fetch("/career/analyze", {
-        method: "POST",
-        body: formData
-    });
-
-    const json = await response.json();
-
-    document.getElementById("result").textContent =
-        JSON.stringify(json, null, 2);
-
+// ── Tab switching ──────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('pane-analyze').classList.toggle('hidden', tab !== 'analyze');
+  document.getElementById('pane-chat').classList.toggle('hidden', tab !== 'chat');
+  document.getElementById('tab-analyze').className = 'py-3 text-sm font-medium transition-colors ' + (tab === 'analyze' ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
+  document.getElementById('tab-chat').className = 'py-3 text-sm font-medium transition-colors ' + (tab === 'chat' ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
+  if (tab === 'chat' && !window._wsReady) initWebSocket();
 }
 
+// ── File handling ──────────────────────────────────────────
+function handleFile(file) {
+  if (!file) return;
+  document.getElementById('drop-label').textContent = `✅ ${file.name}`;
+  window._pdfFile = file;
+  document.getElementById('resume-text').value = '';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') handleFile(file);
+}
+
+// ── Analysis ──────────────────────────────────────────────
+async function runAnalysis() {
+  const jobText = document.getElementById('job-text').value.trim();
+  const resumeText = document.getElementById('resume-text').value.trim();
+  const pdfFile = window._pdfFile;
+
+  if (!jobText) { showError('Please paste a job description.'); return; }
+  if (!resumeText && !pdfFile) { showError('Please upload a PDF or paste your resume text.'); return; }
+
+  const btn = document.getElementById('analyze-btn');
+  const btnText = document.getElementById('analyze-btn-text');
+  btn.disabled = true;
+  btnText.textContent = '⏳ Analyzing... (this takes ~30s)';
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('error-box').classList.add('hidden');
+
+  try {
+    let data;
+
+    if (pdfFile) {
+      // Use PDF upload endpoint
+      const formData = new FormData();
+      formData.append('file', pdfFile);
+      const resumeRes = await fetch('/resume/analyze', { method: 'POST', body: formData });
+      const resumeData = await resumeRes.json();
+      if (!resumeData.success) throw new Error('Resume analysis failed: ' + (resumeData.error || 'unknown'));
+
+      // Then run job + match + cover letter via career endpoint
+      const res = await fetch('/career/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resume_text: JSON.stringify(resumeData.analysis),
+          job_description: jobText
+        })
+      });
+      data = await res.json();
+    } else {
+      const res = await fetch('/career/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume_text: resumeText, job_description: jobText })
+      });
+      data = await res.json();
+    }
+
+    if (!data.success) throw new Error(data.detail?.error || data.detail || 'Analysis failed');
+    renderResults(data.data);
+
+  } catch (err) {
+    showError(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = '⚡ Analyze My Career Fit';
+  }
+}
+
+function renderResults(data) {
+  const resume = data.resume || {};
+  const match = data.match || {};
+  const job = data.job || {};
+
+  // Scores
+  document.getElementById('ats-score').textContent = (resume.ats_score ?? '—') + (resume.ats_score !== undefined ? '%' : '');
+  document.getElementById('match-score').textContent = (match.match_score ?? '—') + (match.match_score !== undefined ? '%' : '');
+  document.getElementById('exp-years').textContent = resume.experience_years ?? '—';
+  document.getElementById('matched-skills-count').textContent = (match.matched_skills?.length ?? '—');
+
+  // Matched skills
+  const matchedEl = document.getElementById('matched-skills');
+  matchedEl.innerHTML = (match.matched_skills || resume.skills || []).map(s =>
+    `<span class="text-xs bg-emerald-900 text-emerald-300 px-2 py-1 rounded-full">${s}</span>`
+  ).join('') || '<span class="text-gray-500 text-sm">None found</span>';
+
+  // Missing skills
+  const missingEl = document.getElementById('missing-skills');
+  const missing = match.missing_skills || resume.missing_skills || [];
+  missingEl.innerHTML = missing.map(s =>
+    `<span class="text-xs bg-rose-900 text-rose-300 px-2 py-1 rounded-full">${s}</span>`
+  ).join('') || '<span class="text-gray-500 text-sm">None — great match!</span>';
+
+  // Improvements
+  const improvements = match.resume_improvements || [];
+  if (improvements.length > 0) {
+    document.getElementById('improvements-section').classList.remove('hidden');
+    document.getElementById('improvements-list').innerHTML = improvements.map(i =>
+      `<li class="flex gap-2"><span class="text-amber-400 flex-shrink-0">→</span>${i}</li>`
+    ).join('');
+  }
+
+  // Cover letter
+  document.getElementById('cover-letter').textContent = data.cover_letter || 'No cover letter generated.';
+
+  // Interview questions
+  const questions = match.interview_questions || [];
+  if (questions.length > 0) {
+    document.getElementById('interview-section').classList.remove('hidden');
+    document.getElementById('interview-list').innerHTML = questions.map((q, i) =>
+      `<li class="flex gap-2"><span class="text-sky-400 flex-shrink-0">${i+1}.</span>${q}</li>`
+    ).join('');
+  }
+
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠️ ' + msg;
+  el.classList.remove('hidden');
+}
+
+function copyCoverLetter() {
+  const text = document.getElementById('cover-letter').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// ── WebSocket Chat ─────────────────────────────────────────
+let ws, wsReconnectTimer, currentAIBubble = null;
+
+function initWebSocket() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = `${proto}://${location.host}/ws/agent`;
+  setWsStatus('Connecting...');
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    window._wsReady = true;
+    setWsStatus('');
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'chunk') appendChunk(msg.data);
+      if (msg.type === 'done') finalizeAIBubble();
+      if (msg.type === 'error') appendAIMessage('⚠️ ' + (msg.error || 'Error'));
+    } catch {}
+  };
+
+  ws.onclose = (e) => {
+    window._wsReady = false;
+    // Server crash → back off; normal close → quick retry
+    const delay = [1000, 1011].includes(e.code) ? 10000 : 3000;
+    setWsStatus('Reconnecting...');
+    wsReconnectTimer = setTimeout(initWebSocket, delay);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    initWebSocket();
+    setTimeout(() => sendChat(), 500);
+    return;
+  }
+
+  appendUserMessage(msg);
+  input.value = '';
+
+  // Create AI bubble placeholder
+  currentAIBubble = createAIBubble();
+
+  ws.send(JSON.stringify({
+    type: 'prompt',
+    prompt: `You are an expert AI career coach. Be concise, practical, and encouraging.\n\nUser: ${msg}`,
+    request_id: Date.now().toString(),
+    model: 'qwen3:8b'
+  }));
+}
+
+function appendUserMessage(text) {
+  const el = document.createElement('div');
+  el.className = 'flex gap-3 justify-end';
+  el.innerHTML = `<div class="chat-bubble-user px-4 py-3 text-sm max-w-lg">${escHtml(text)}</div>`;
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+}
+
+function createAIBubble() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex gap-3';
+  const avatar = document.createElement('div');
+  avatar.className = 'w-8 h-8 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold';
+  avatar.textContent = 'K';
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble-ai px-4 py-3 text-sm max-w-lg typing';
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(bubble);
+  document.getElementById('chat-messages').appendChild(wrapper);
+  scrollChat();
+  return bubble;
+}
+
+function appendChunk(text) {
+  if (!currentAIBubble) currentAIBubble = createAIBubble();
+  currentAIBubble.classList.remove('typing');
+  currentAIBubble.textContent += text;
+  scrollChat();
+}
+
+function finalizeAIBubble() {
+  if (currentAIBubble) currentAIBubble.classList.remove('typing');
+  currentAIBubble = null;
+}
+
+function appendAIMessage(text) {
+  finalizeAIBubble();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex gap-3';
+  wrapper.innerHTML = `
+    <div class="w-8 h-8 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold">K</div>
+    <div class="chat-bubble-ai px-4 py-3 text-sm max-w-lg">${escHtml(text)}</div>`;
+  document.getElementById('chat-messages').appendChild(wrapper);
+  scrollChat();
+}
+
+function scrollChat() {
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function setWsStatus(msg) {
+  document.getElementById('ws-status').textContent = msg;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 </script>
-
 </body>
-
 </html>
