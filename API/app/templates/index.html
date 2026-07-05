@@ -427,18 +427,32 @@ function escHtml(t) {
 // ── Resume Rewrite & PDF Download ─────────────────────────
 async function runRewritePDF() {
   const jobText = document.getElementById('job-text').value.trim();
-  const resumeText = document.getElementById('resume-text').value.trim();
+  let resumeText = document.getElementById('resume-text').value.trim();
+  const pdfFile = window._pdfFile;
 
   if (!jobText) { showError('Please paste a job description.'); return; }
-  if (!resumeText) { showError('Please paste your resume text to use the rewrite feature.'); return; }
+  if (!resumeText && !pdfFile) { showError('Please upload a PDF or paste your resume text.'); return; }
 
   const btn = document.getElementById('rewrite-btn');
   const btnText = document.getElementById('rewrite-btn-text');
   btn.disabled = true;
-  btnText.textContent = '⏳ Rewriting resume... (~30s)';
   document.getElementById('error-box').classList.add('hidden');
 
   try {
+    // If PDF uploaded, extract text first via /resume/analyze
+    if (pdfFile && !resumeText) {
+      btnText.textContent = '⏳ Reading PDF... (~10s)';
+      const formData = new FormData();
+      formData.append('file', pdfFile);
+      const extractRes = await fetch('/resume/analyze', { method: 'POST', body: formData });
+      const extractData = await extractRes.json();
+      if (!extractData.success) throw new Error('Could not read PDF: ' + (extractData.error || 'unknown'));
+      // Use the structured resume as text input
+      resumeText = JSON.stringify(extractData.analysis, null, 2);
+    }
+
+    btnText.textContent = '⏳ Rewriting for this JD... (~30s)';
+
     const res = await fetch('/resume/rewrite/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
