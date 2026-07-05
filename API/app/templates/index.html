@@ -37,6 +37,12 @@
       <button onclick="switchTab('chat')" id="tab-chat" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
         💬 Career Coach
       </button>
+      <button onclick="switchTab('interview')" id="tab-interview" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+        🎯 Interview Prep
+      </button>
+      <button onclick="switchTab('scanner')" id="tab-scanner" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+        🔍 Job Scanner
+      </button>
     </div>
   </div>
 
@@ -162,13 +168,54 @@
     </div>
   </div>
 
-<script>
+<!-- ======= INTERVIEW PREP TAB ======= -->
+<div id="pane-interview" class="hidden max-w-4xl mx-auto px-6 py-8">
+  <h2 class="text-2xl font-bold mb-1">Interview Prep</h2>
+  <p class="text-gray-400 text-sm mb-6">Get personalized interview questions + coached answers based on your resume and the job you're targeting.</p>
+  <div class="grid md:grid-cols-2 gap-6 mb-6">
+    <div>
+      <label class="block text-sm font-medium mb-2">Your Resume</label>
+      <textarea id="iv-resume" rows="10" placeholder="Paste your resume text here..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500"></textarea>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-2">Job Description</label>
+      <textarea id="iv-job" rows="10" placeholder="Paste the job description..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500"></textarea>
+    </div>
+  </div>
+  <button onclick="runInterviewPrep()" id="iv-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors">
+    <span id="iv-btn-text">🎯 Generate Interview Prep</span>
+  </button>
+  <div id="iv-results" class="mt-8 hidden space-y-4"></div>
+  <div id="iv-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+</div>
+
+<!-- ======= JOB SCANNER TAB ======= -->
+<div id="pane-scanner" class="hidden max-w-3xl mx-auto px-6 py-8">
+  <h2 class="text-2xl font-bold mb-1">Job Scanner</h2>
+  <p class="text-gray-400 text-sm mb-6">Paste any job posting URL — get an instant fit score, recruiter verdict, and what you need to fix.</p>
+  <div class="mb-4">
+    <label class="block text-sm font-medium mb-2">Job Posting URL</label>
+    <input id="sc-url" type="url" placeholder="https://linkedin.com/jobs/view/... or any job URL" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500" />
+  </div>
+  <div class="mb-6">
+    <label class="block text-sm font-medium mb-2">Your Resume</label>
+    <textarea id="sc-resume" rows="8" placeholder="Paste your resume text here..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500"></textarea>
+  </div>
+  <button onclick="runJobScan()" id="sc-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors">
+    <span id="sc-btn-text">🔍 Scan Job & Score My Fit</span>
+  </button>
+  <div id="sc-results" class="mt-8 hidden"></div>
+  <div id="sc-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+</div>
 // ── Tab switching ──────────────────────────────────────────
 function switchTab(tab) {
   document.getElementById('pane-analyze').classList.toggle('hidden', tab !== 'analyze');
   document.getElementById('pane-chat').classList.toggle('hidden', tab !== 'chat');
-  document.getElementById('tab-analyze').className = 'py-3 text-sm font-medium transition-colors ' + (tab === 'analyze' ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
-  document.getElementById('tab-chat').className = 'py-3 text-sm font-medium transition-colors ' + (tab === 'chat' ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
+  document.getElementById('pane-interview').classList.toggle('hidden', tab !== 'interview');
+  document.getElementById('pane-scanner').classList.toggle('hidden', tab !== 'scanner');
+  ['analyze','chat','interview','scanner'].forEach(t => {
+    document.getElementById('tab-'+t).className = 'py-3 text-sm font-medium transition-colors ' + (t === tab ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
+  });
   if (tab === 'chat' && !window._wsReady) initWebSocket();
 }
 
@@ -422,6 +469,99 @@ function setWsStatus(msg) {
 
 function escHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Interview Prep ─────────────────────────────────────────
+async function runInterviewPrep() {
+  const resume = document.getElementById('iv-resume').value.trim();
+  const job = document.getElementById('iv-job').value.trim();
+  if (!resume) { document.getElementById('iv-error').textContent = '⚠️ Please paste your resume.'; document.getElementById('iv-error').classList.remove('hidden'); return; }
+  if (!job) { document.getElementById('iv-error').textContent = '⚠️ Please paste the job description.'; document.getElementById('iv-error').classList.remove('hidden'); return; }
+  document.getElementById('iv-error').classList.add('hidden');
+  const btn = document.getElementById('iv-btn'), btnText = document.getElementById('iv-btn-text');
+  btn.disabled = true; btnText.textContent = '⏳ Generating prep guide... (~30s)';
+  document.getElementById('iv-results').classList.add('hidden');
+  try {
+    const res = await fetch('/interview/prep', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: resume, job_description: job}) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed');
+    renderInterviewPrep(data.data);
+  } catch(e) { document.getElementById('iv-error').textContent = '⚠️ ' + e.message; document.getElementById('iv-error').classList.remove('hidden'); }
+  finally { btn.disabled = false; btnText.textContent = '🎯 Generate Interview Prep'; }
+}
+
+function renderInterviewPrep(d) {
+  const el = document.getElementById('iv-results');
+  let html = '';
+  if (d.role_summary) html += `<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 text-sm text-indigo-200 mb-2">💡 ${escHtml(d.role_summary)}</div>`;
+  if (d.salary_range) html += `<div class="bg-gray-900 border border-gray-700 rounded-xl p-4 text-sm mb-2">💰 <strong>Salary Range:</strong> ${escHtml(d.salary_range)} &nbsp;·&nbsp; <span class="text-gray-400">${escHtml(d.negotiation_tip||'')}</span></div>`;
+  (d.questions||[]).forEach((q,i) => {
+    html += `<div class="bg-gray-900 border border-gray-700 rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded-full">${escHtml(q.category||'')}</span>
+        <span class="text-xs text-gray-500">Q${i+1}</span>
+      </div>
+      <p class="font-semibold text-sm mb-3">${escHtml(q.question||'')}</p>
+      <div class="text-xs text-gray-400 mb-2">❓ Why asked: ${escHtml(q.why_asked||'')}</div>
+      <div class="bg-gray-800 rounded-lg p-3 text-sm text-gray-200 mb-2"><strong class="text-emerald-400">✅ Strong answer:</strong><br>${escHtml(q.coached_answer||'')}</div>
+      ${q.red_flags ? `<div class="text-xs text-rose-400">⚠️ Red flag: ${escHtml(q.red_flags)}</div>` : ''}
+    </div>`;
+  });
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+  el.scrollIntoView({behavior:'smooth'});
+}
+
+// ── Job Scanner ────────────────────────────────────────────
+async function runJobScan() {
+  const url = document.getElementById('sc-url').value.trim();
+  const resume = document.getElementById('sc-resume').value.trim();
+  if (!url) { document.getElementById('sc-error').textContent = '⚠️ Please enter a job URL.'; document.getElementById('sc-error').classList.remove('hidden'); return; }
+  if (!resume) { document.getElementById('sc-error').textContent = '⚠️ Please paste your resume.'; document.getElementById('sc-error').classList.remove('hidden'); return; }
+  document.getElementById('sc-error').classList.add('hidden');
+  const btn = document.getElementById('sc-btn'), btnText = document.getElementById('sc-btn-text');
+  btn.disabled = true; btnText.textContent = '⏳ Scanning job posting... (~20s)';
+  document.getElementById('sc-results').classList.add('hidden');
+  try {
+    const res = await fetch('/job/scan', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({job_url: url, resume_text: resume}) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Scan failed');
+    renderJobScan(data.data);
+  } catch(e) { document.getElementById('sc-error').textContent = '⚠️ ' + e.message; document.getElementById('sc-error').classList.remove('hidden'); }
+  finally { btn.disabled = false; btnText.textContent = '🔍 Scan Job & Score My Fit'; }
+}
+
+function renderJobScan(d) {
+  const score = d.fit_score || 0;
+  const verdictColor = d.recruiter_verdict === 'hire' ? 'text-emerald-400' : d.recruiter_verdict === 'maybe' ? 'text-amber-400' : 'text-rose-400';
+  const verdictIcon = d.recruiter_verdict === 'hire' ? '✅' : d.recruiter_verdict === 'maybe' ? '⚡' : '❌';
+  const el = document.getElementById('sc-results');
+  el.innerHTML = `
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 text-center">
+        <div class="text-4xl font-bold text-indigo-400 mb-1">${score}%</div>
+        <div class="text-xs text-gray-400">Fit Score</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 text-center">
+        <div class="text-3xl font-bold ${verdictColor} mb-1">${verdictIcon} ${(d.recruiter_verdict||'').toUpperCase()}</div>
+        <div class="text-xs text-gray-400">Recruiter Verdict</div>
+      </div>
+    </div>
+    ${d['6_second_view'] ? `<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 text-sm text-indigo-200 mb-4">👁️ <strong>6-Second View:</strong> ${escHtml(d['6_second_view'])}</div>` : ''}
+    <div class="grid md:grid-cols-2 gap-4 mb-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-xl p-4">
+        <h4 class="text-sm font-semibold text-emerald-400 mb-2">✅ Matched Keywords</h4>
+        <div class="flex flex-wrap gap-1">${(d.matched_keywords||[]).map(k=>`<span class="text-xs bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded-full">${escHtml(k)}</span>`).join('')||'<span class="text-gray-500 text-xs">None detected</span>'}</div>
+      </div>
+      <div class="bg-gray-900 border border-gray-700 rounded-xl p-4">
+        <h4 class="text-sm font-semibold text-rose-400 mb-2">❌ Missing Keywords</h4>
+        <div class="flex flex-wrap gap-1">${(d.missing_keywords||[]).map(k=>`<span class="text-xs bg-rose-900 text-rose-300 px-2 py-0.5 rounded-full">${escHtml(k)}</span>`).join('')||'<span class="text-gray-500 text-xs">None — great fit!</span>'}</div>
+      </div>
+    </div>
+    ${d.recommended_action ? `<div class="bg-amber-950 border border-amber-800 rounded-xl p-4 text-sm text-amber-200">🎯 <strong>Next step:</strong> ${escHtml(d.recommended_action)}</div>` : ''}
+  `;
+  el.classList.remove('hidden');
+  el.scrollIntoView({behavior:'smooth'});
 }
 
 // ── Build readable resume text from structured analysis ────
