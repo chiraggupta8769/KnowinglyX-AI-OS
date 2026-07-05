@@ -65,9 +65,14 @@
       </div>
     </div>
 
-    <button onclick="runAnalysis()" id="analyze-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-      <span id="analyze-btn-text">⚡ Analyze My Career Fit</span>
-    </button>
+    <div class="flex gap-3">
+      <button onclick="runAnalysis()" id="analyze-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+        <span id="analyze-btn-text">⚡ Analyze My Career Fit</span>
+      </button>
+      <button onclick="runRewritePDF()" id="rewrite-btn" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+        <span id="rewrite-btn-text">📄 Rewrite Resume & Download PDF</span>
+      </button>
+    </div>
 
     <!-- Results -->
     <div id="results" class="mt-8 hidden">
@@ -417,6 +422,50 @@ function setWsStatus(msg) {
 
 function escHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Resume Rewrite & PDF Download ─────────────────────────
+async function runRewritePDF() {
+  const jobText = document.getElementById('job-text').value.trim();
+  const resumeText = document.getElementById('resume-text').value.trim();
+
+  if (!jobText) { showError('Please paste a job description.'); return; }
+  if (!resumeText) { showError('Please paste your resume text to use the rewrite feature.'); return; }
+
+  const btn = document.getElementById('rewrite-btn');
+  const btnText = document.getElementById('rewrite-btn-text');
+  btn.disabled = true;
+  btnText.textContent = '⏳ Rewriting resume... (~30s)';
+  document.getElementById('error-box').classList.add('hidden');
+
+  try {
+    const res = await fetch('/resume/rewrite/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resume_text: resumeText, job_description: jobText })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Rewrite failed');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ats-optimized-resume.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+    btnText.textContent = '✅ Downloaded!';
+    setTimeout(() => { btnText.textContent = '📄 Rewrite Resume & Download PDF'; }, 3000);
+
+  } catch (err) {
+    showError(err.message || 'Rewrite failed. Please try again.');
+  } finally {
+    btn.disabled = false;
+    if (btnText.textContent !== '✅ Downloaded!') btnText.textContent = '📄 Rewrite Resume & Download PDF';
+  }
 }
 </script>
 </body>

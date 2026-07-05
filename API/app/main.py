@@ -10,6 +10,7 @@ from app.routes.match import router as match_router
 from app.routes.cover_letter import router as cover_letter_router
 from app.routes.career import router as career_router
 from app.routes.agent import router as agent_router
+from app.routes.resume_rewrite import router as resume_rewrite_router
 
 # Boot tool registry (registers file_create, file_read, exec_code)
 import app.tools  # noqa: F401
@@ -53,3 +54,4 @@ app.include_router(match_router)
 app.include_router(cover_letter_router)
 app.include_router(career_router)
 app.include_router(agent_router)
+app.include_router(resume_rewrite_router)
