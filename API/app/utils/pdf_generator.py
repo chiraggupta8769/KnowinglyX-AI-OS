@@ -1,180 +1,165 @@
 """
-ATS-friendly PDF generator using reportlab.
-Produces clean, single-column, parseable PDFs.
+ATS-friendly PDF generator — professional, clean, single-column layout.
 """
 from __future__ import annotations
 
 import io
 import re
+
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
-
-# ATS-safe colors
 COLOR_BLACK = HexColor("#000000")
-COLOR_DARK = HexColor("#1a1a1a")
-COLOR_MID = HexColor("#333333")
-COLOR_LINE = HexColor("#cccccc")
+COLOR_HEADER = HexColor("#1a1a2e")
+COLOR_SECTION = HexColor("#2d2d2d")
+COLOR_BODY = HexColor("#333333")
+COLOR_LINE = HexColor("#999999")
+COLOR_CONTACT = HexColor("#555555")
+
+SECTION_KEYWORDS = {
+    "SUMMARY", "PROFESSIONAL SUMMARY", "OBJECTIVE", "PROFILE",
+    "EXPERIENCE", "WORK EXPERIENCE", "PROFESSIONAL EXPERIENCE",
+    "SKILLS", "TECHNICAL SKILLS", "CORE COMPETENCIES", "KEY SKILLS",
+    "EDUCATION", "CERTIFICATIONS", "PROJECTS", "ACHIEVEMENTS", "AWARDS",
+    "PUBLICATIONS", "LANGUAGES", "VOLUNTEER", "TARGET ROLES", "STRENGTHS",
+}
+
+
+def _is_section_header(line: str) -> bool:
+    clean = line.strip().rstrip(":").upper()
+    if clean in SECTION_KEYWORDS:
+        return True
+    # All-caps lines 3–40 chars, no numbers
+    if line.isupper() and 3 <= len(line.strip()) <= 40 and not re.search(r'\d{4}', line):
+        return True
+    return False
+
+
+def _is_date_line(line: str) -> bool:
+    return bool(re.search(r'\d{4}', line) and re.search(r'–|-|Present|Current|Now', line))
+
+
+def _is_bullet(line: str) -> bool:
+    return line.strip().startswith(("•", "-", "*", "·", "–"))
 
 
 def generate_resume_pdf(resume_text: str, candidate_name: str = "") -> bytes:
-    """
-    Convert plain resume text into an ATS-friendly PDF.
-    Returns PDF as bytes.
-    """
     buffer = io.BytesIO()
 
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        leftMargin=0.75 * inch,
-        rightMargin=0.75 * inch,
+        leftMargin=0.8 * inch,
+        rightMargin=0.8 * inch,
         topMargin=0.75 * inch,
         bottomMargin=0.75 * inch,
     )
 
-    styles = getSampleStyleSheet()
-
     name_style = ParagraphStyle(
-        "Name",
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=22,
-        textColor=COLOR_BLACK,
-        alignment=TA_CENTER,
-        spaceAfter=4,
+        "Name", fontName="Helvetica-Bold", fontSize=20, leading=24,
+        textColor=COLOR_HEADER, alignment=TA_CENTER, spaceAfter=2,
     )
-
     contact_style = ParagraphStyle(
-        "Contact",
-        fontName="Helvetica",
-        fontSize=10,
-        leading=14,
-        textColor=COLOR_MID,
-        alignment=TA_CENTER,
-        spaceAfter=8,
+        "Contact", fontName="Helvetica", fontSize=10, leading=14,
+        textColor=COLOR_CONTACT, alignment=TA_CENTER, spaceAfter=6,
     )
-
     section_style = ParagraphStyle(
-        "Section",
-        fontName="Helvetica-Bold",
-        fontSize=11,
-        leading=14,
-        textColor=COLOR_BLACK,
-        spaceBefore=10,
-        spaceAfter=4,
+        "Section", fontName="Helvetica-Bold", fontSize=11, leading=15,
+        textColor=COLOR_SECTION, spaceBefore=12, spaceAfter=3,
     )
-
-    body_style = ParagraphStyle(
-        "Body",
-        fontName="Helvetica",
-        fontSize=10,
-        leading=14,
-        textColor=COLOR_DARK,
-        spaceAfter=2,
-        leftIndent=0,
+    job_header_style = ParagraphStyle(
+        "JobHeader", fontName="Helvetica-Bold", fontSize=10, leading=14,
+        textColor=COLOR_BLACK, spaceAfter=1,
     )
-
+    date_style = ParagraphStyle(
+        "Date", fontName="Helvetica-Oblique", fontSize=9, leading=12,
+        textColor=COLOR_CONTACT, spaceAfter=3,
+    )
     bullet_style = ParagraphStyle(
-        "Bullet",
-        fontName="Helvetica",
-        fontSize=10,
-        leading=14,
-        textColor=COLOR_DARK,
-        spaceAfter=2,
-        leftIndent=12,
-        bulletIndent=0,
+        "Bullet", fontName="Helvetica", fontSize=10, leading=14,
+        textColor=COLOR_BODY, leftIndent=14, spaceAfter=2,
     )
-
-    job_title_style = ParagraphStyle(
-        "JobTitle",
-        fontName="Helvetica-Bold",
-        fontSize=10,
-        leading=14,
-        textColor=COLOR_DARK,
-        spaceAfter=1,
+    body_style = ParagraphStyle(
+        "Body", fontName="Helvetica", fontSize=10, leading=14,
+        textColor=COLOR_BODY, spaceAfter=2,
     )
 
     story = []
     lines = resume_text.strip().split("\n")
 
-    # Section headers (all caps lines)
-    SECTION_KEYWORDS = {
-        "SUMMARY", "EXPERIENCE", "WORK EXPERIENCE", "SKILLS", "TECHNICAL SKILLS",
-        "EDUCATION", "CERTIFICATIONS", "PROJECTS", "ACHIEVEMENTS", "AWARDS",
-        "PUBLICATIONS", "LANGUAGES", "INTERESTS", "OBJECTIVE", "PROFILE",
-        "PROFESSIONAL EXPERIENCE", "CORE COMPETENCIES", "VOLUNTEER",
-    }
+    name_written = False
+    contact_buffer = []
+    i = 0
 
-    # Try to detect name from first non-empty line
-    name_detected = False
-    contact_lines = []
-
-    for i, line in enumerate(lines):
-        line = line.strip()
+    # --- Detect name and contact lines at top ---
+    while i < len(lines) and i < 6:
+        line = lines[i].strip()
         if not line:
+            i += 1
+            continue
+        is_contact = bool(re.search(r'[@|]|\+?\d[\d\s\-]{7,}|linkedin\.com|github\.com|http', line, re.I))
+        is_section = _is_section_header(line)
+
+        if not name_written and not is_contact and not is_section:
+            story.append(Paragraph(x(line), name_style))
+            name_written = True
+            i += 1
             continue
 
-        # Check if it's a section header
-        upper = line.upper().rstrip(":").strip()
-        is_section = (
-            upper in SECTION_KEYWORDS
-            or (line.isupper() and len(line) > 3 and len(line) < 50)
-        )
-
-        # Name detection (first real line, not email/phone)
-        is_contact = bool(re.search(r'[@|]|\d{3}|\+\d|linkedin\.com|github\.com', line, re.I))
-
-        if not name_detected and not is_contact and not is_section and i < 5:
-            # Likely the candidate name
-            story.append(Paragraph(escape_xml(line), name_style))
-            name_detected = True
+        if is_contact or (name_written and not is_section and i < 5):
+            contact_buffer.append(line)
+            i += 1
             continue
 
-        if not name_detected and is_contact and i < 5:
-            contact_lines.append(escape_xml(line))
-            continue
+        break
 
-        if contact_lines and not name_detected:
-            # Flush contact lines
-            for cl in contact_lines:
-                story.append(Paragraph(cl, contact_style))
-            contact_lines = []
+    if contact_buffer:
+        story.append(Paragraph(x(" · ".join(contact_buffer)), contact_style))
 
-        if is_section:
+    story.append(HRFlowable(width="100%", thickness=1, color=COLOR_LINE, spaceAfter=6))
+
+    # --- Body ---
+    while i < len(lines):
+        line = lines[i].strip()
+        i += 1
+
+        if not line:
             story.append(Spacer(1, 4))
-            story.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_LINE))
-            story.append(Paragraph(line.rstrip(":").upper(), section_style))
+            continue
 
-        elif line.startswith("•") or line.startswith("-") or line.startswith("*"):
-            bullet_text = line.lstrip("•-* ").strip()
-            story.append(Paragraph(f"• {escape_xml(bullet_text)}", bullet_style))
+        if _is_section_header(line):
+            story.append(Paragraph(x(line.rstrip(":").upper()), section_style))
+            story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor("#cccccc"), spaceAfter=4))
 
-        elif re.search(r'\d{4}', line) and ("–" in line or "-" in line or "Present" in line or "Current" in line):
-            # Date line — treat as job title/date
-            story.append(Paragraph(escape_xml(line), job_title_style))
+        elif _is_date_line(line):
+            story.append(Paragraph(x(line), date_style))
 
-        elif line:
-            story.append(Paragraph(escape_xml(line), body_style))
+        elif _is_bullet(line):
+            text = line.lstrip("•-*·– ").strip()
+            story.append(Paragraph(f"• {x(text)}", bullet_style))
 
-    # Flush any remaining contact lines
-    for cl in contact_lines:
-        story.append(Paragraph(cl, contact_style))
+        elif line.isupper() or (len(line) < 60 and not line.endswith(".")):
+            # Likely a job title or company name
+            story.append(Paragraph(x(line), job_header_style))
+
+        else:
+            story.append(Paragraph(x(line), body_style))
 
     doc.build(story)
     return buffer.getvalue()
 
 
-def escape_xml(text: str) -> str:
-    """Escape characters that break ReportLab XML parsing."""
+def x(text: str) -> str:
+    """Escape XML special chars for ReportLab."""
     return (
         text
         .replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace('"', "&quot;")
+        .replace("'", "&#39;")
     )

@@ -424,6 +424,47 @@ function escHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ── Build readable resume text from structured analysis ────
+function buildResumeText(a) {
+  const lines = [];
+  const c = a.candidate || {};
+  if (c.name) lines.push(c.name);
+  const contact = [c.email, c.phone].filter(Boolean).join(' | ');
+  if (contact) lines.push(contact);
+  lines.push('');
+
+  if (a.summary) {
+    lines.push('SUMMARY');
+    lines.push(a.summary);
+    lines.push('');
+  }
+
+  if (a.skills?.length) {
+    lines.push('SKILLS');
+    lines.push(a.skills.join(', '));
+    lines.push('');
+  }
+
+  if (a.companies?.length) {
+    lines.push('EXPERIENCE');
+    a.companies.forEach(co => lines.push(`• ${co}`));
+    lines.push('');
+  }
+
+  if (a.strengths?.length) {
+    lines.push('STRENGTHS');
+    a.strengths.forEach(s => lines.push(`• ${s}`));
+    lines.push('');
+  }
+
+  if (a.recommended_roles?.length) {
+    lines.push('TARGET ROLES');
+    lines.push(a.recommended_roles.join(', '));
+  }
+
+  return lines.join('\n');
+}
+
 // ── Resume Rewrite & PDF Download ─────────────────────────
 async function runRewritePDF() {
   const jobText = document.getElementById('job-text').value.trim();
@@ -447,8 +488,9 @@ async function runRewritePDF() {
       const extractRes = await fetch('/resume/analyze', { method: 'POST', body: formData });
       const extractData = await extractRes.json();
       if (!extractData.success) throw new Error('Could not read PDF: ' + (extractData.error || 'unknown'));
-      // Use the structured resume as text input
-      resumeText = JSON.stringify(extractData.analysis, null, 2);
+      // Convert structured analysis back to readable resume text
+      const a = extractData.analysis;
+      resumeText = buildResumeText(a);
     }
 
     btnText.textContent = '⏳ Rewriting for this JD... (~30s)';
