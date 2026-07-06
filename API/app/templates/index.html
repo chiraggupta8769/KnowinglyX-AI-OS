@@ -680,7 +680,7 @@ async function findJobs() {
   btn.disabled = true; btnText.textContent = '⏳ Finding matching jobs...';
   document.getElementById('jm-results').classList.add('hidden');
   try {
-    const res = await fetch('/jobs/match', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: resume, limit: 15}) });
+    const res = await fetch('/career-jobs/match', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: resume, limit: 15}) });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to find jobs');
     renderJobs(data);
@@ -716,7 +716,7 @@ async function getApplyKit(title, company) {
   document.getElementById('kit-content').innerHTML = '<div class="text-center py-8 text-gray-400">⏳ Generating your Apply Kit...</div>';
   document.getElementById('kit-modal').classList.remove('hidden');
   try {
-    const res = await fetch('/jobs/apply-kit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: _jmResume, job_title: title, company: company}) });
+    const res = await fetch('/career-jobs/apply-kit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: _jmResume, job_title: title, company: company}) });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed');
     const d = data.data;

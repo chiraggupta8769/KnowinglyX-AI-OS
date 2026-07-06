@@ -13,7 +13,7 @@ from app.services.job_discovery_service import find_matching_jobs
 from app.services.ollama_service import ollama_service, OllamaError
 from app.utils.json_tools import parse_llm_json
 
-router = APIRouter(prefix="/jobs", tags=["Job Matching"])
+router = APIRouter(prefix="/career-jobs", tags=["Job Matching"])
 
 
 class JobMatchRequest(BaseModel):
