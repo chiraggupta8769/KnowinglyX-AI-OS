@@ -43,6 +43,9 @@
       <button onclick="switchTab('scanner')" id="tab-scanner" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
         🔍 Job Scanner
       </button>
+      <button onclick="switchTab('jobs')" id="tab-jobs" class="py-3 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+        💼 Matching Jobs
+      </button>
     </div>
   </div>
 
@@ -213,7 +216,8 @@ function switchTab(tab) {
   document.getElementById('pane-chat').classList.toggle('hidden', tab !== 'chat');
   document.getElementById('pane-interview').classList.toggle('hidden', tab !== 'interview');
   document.getElementById('pane-scanner').classList.toggle('hidden', tab !== 'scanner');
-  ['analyze','chat','interview','scanner'].forEach(t => {
+  document.getElementById('pane-jobs').classList.toggle('hidden', tab !== 'jobs');
+  ['analyze','chat','interview','scanner','jobs'].forEach(t => {
     document.getElementById('tab-'+t).className = 'py-3 text-sm font-medium transition-colors ' + (t === tab ? 'tab-active' : 'text-gray-400 hover:text-gray-200');
   });
   if (tab === 'chat' && !window._wsReady) initWebSocket();
@@ -663,6 +667,107 @@ async function runRewritePDF() {
     if (btnText.textContent !== '✅ Downloaded!') btnText.textContent = '📄 Rewrite Resume & Download PDF';
   }
 }
+
+// ── Matching Jobs ──────────────────────────────────────────
+let _jmResume = '';
+
+async function findJobs() {
+  const resume = document.getElementById('jm-resume').value.trim();
+  if (!resume) { document.getElementById('jm-error').textContent = '⚠️ Please paste your resume.'; document.getElementById('jm-error').classList.remove('hidden'); return; }
+  _jmResume = resume;
+  document.getElementById('jm-error').classList.add('hidden');
+  const btn = document.getElementById('jm-btn'), btnText = document.getElementById('jm-btn-text');
+  btn.disabled = true; btnText.textContent = '⏳ Finding matching jobs...';
+  document.getElementById('jm-results').classList.add('hidden');
+  try {
+    const res = await fetch('/jobs/match', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: resume, limit: 15}) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to find jobs');
+    renderJobs(data);
+  } catch(e) { document.getElementById('jm-error').textContent = '⚠️ ' + e.message; document.getElementById('jm-error').classList.remove('hidden'); }
+  finally { btn.disabled = false; btnText.textContent = '💼 Find Matching Jobs'; }
+}
+
+function renderJobs(data) {
+  const el = document.getElementById('jm-results');
+  if (!data.jobs?.length) { el.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No matching jobs found. Try updating your resume with more specific skills.</p>'; el.classList.remove('hidden'); return; }
+  let html = `<p class="text-gray-400 text-sm mb-3">Found <strong class="text-white">${data.count}</strong> matching jobs based on your skills: ${(data.skills_used||[]).slice(0,5).map(s=>`<span class="text-indigo-400">${escHtml(s)}</span>`).join(', ')}</p>`;
+  data.jobs.forEach(j => {
+    html += `<div class="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-start justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-sm truncate">${escHtml(j.title)}</div>
+        <div class="text-gray-400 text-xs mt-0.5">${escHtml(j.company)} · ${escHtml(j.location)}</div>
+        ${j.tags?.length ? `<div class="flex flex-wrap gap-1 mt-2">${j.tags.slice(0,4).map(t=>`<span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">${escHtml(t)}</span>`).join('')}</div>` : ''}
+        ${j.salary ? `<div class="text-emerald-400 text-xs mt-1">💰 ${escHtml(j.salary)}</div>` : ''}
+        <div class="text-xs text-gray-500 mt-1">via ${escHtml(j.source)}</div>
+      </div>
+      <div class="flex flex-col gap-2 flex-shrink-0">
+        <a href="${escHtml(j.url)}" target="_blank" rel="noopener" class="text-xs bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-center">View Job</a>
+        <button onclick="getApplyKit('${escHtml(j.title)}','${escHtml(j.company)}')" class="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg">Apply Kit ⚡</button>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+}
+
+async function getApplyKit(title, company) {
+  document.getElementById('kit-title').textContent = `Apply Kit — ${title} at ${company}`;
+  document.getElementById('kit-content').innerHTML = '<div class="text-center py-8 text-gray-400">⏳ Generating your Apply Kit...</div>';
+  document.getElementById('kit-modal').classList.remove('hidden');
+  try {
+    const res = await fetch('/jobs/apply-kit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: _jmResume, job_title: title, company: company}) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed');
+    const d = data.data;
+    document.getElementById('kit-content').innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-gray-800 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-2"><strong class="text-sm text-indigo-400">📧 Email Subject</strong><button onclick="copyText('${escHtml(d.email_subject||'').replace(/'/g,"\\'")}','email-copy-btn')" id="email-copy-btn" class="text-xs text-gray-400 hover:text-white">Copy</button></div>
+          <p class="text-sm">${escHtml(d.email_subject||'')}</p>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-2"><strong class="text-sm text-indigo-400">📨 Application Email</strong><button onclick="copyText(document.getElementById('email-body-text').textContent,'email-body-btn')" id="email-body-btn" class="text-xs text-gray-400 hover:text-white">Copy</button></div>
+          <pre id="email-body-text" class="text-sm text-gray-200 whitespace-pre-wrap">${escHtml(d.email_body||'')}</pre>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-2"><strong class="text-sm text-indigo-400">📝 Cover Letter</strong><button onclick="copyText(document.getElementById('cl-text').textContent,'cl-btn')" id="cl-btn" class="text-xs text-gray-400 hover:text-white">Copy</button></div>
+          <pre id="cl-text" class="text-sm text-gray-200 whitespace-pre-wrap">${escHtml(d.cover_letter||'')}</pre>
+        </div>
+        ${d.key_talking_points?.length ? `<div class="bg-gray-800 rounded-xl p-4"><strong class="text-sm text-emerald-400 block mb-2">🎯 Key Talking Points</strong><ul class="space-y-1">${d.key_talking_points.map(p=>`<li class="text-sm text-gray-200 flex gap-2"><span class="text-emerald-400 flex-shrink-0">→</span>${escHtml(p)}</li>`).join('')}</ul></div>` : ''}
+      </div>`;
+  } catch(e) { document.getElementById('kit-content').innerHTML = `<p class="text-rose-400 text-sm">⚠️ ${escHtml(e.message)}</p>`; }
+}
+
+function copyText(text, btnId) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(btnId);
+    if (btn) { const orig = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = orig, 2000); }
+  });
+}
 </script>
+
+<!-- ======= MATCHING JOBS TAB ======= -->
+<div id="pane-jobs" class="hidden max-w-4xl mx-auto px-6 py-8">
+  <h2 class="text-2xl font-bold mb-1">Matching Jobs</h2>
+  <p class="text-gray-400 text-sm mb-6">Paste your resume — we'll find real matching jobs and generate a full Apply Kit (cover letter + email) for any role with one click.</p>
+  <textarea id="jm-resume" rows="8" placeholder="Paste your resume text here..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-indigo-500 mb-4"></textarea>
+  <button onclick="findJobs()" id="jm-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors">
+    <span id="jm-btn-text">💼 Find Matching Jobs</span>
+  </button>
+  <div id="jm-results" class="mt-6 hidden space-y-3"></div>
+  <div id="jm-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+  <!-- Apply Kit Modal -->
+  <div id="kit-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-lg" id="kit-title">Apply Kit</h3>
+        <button onclick="document.getElementById('kit-modal').classList.add('hidden')" class="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+      </div>
+      <div id="kit-content"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
