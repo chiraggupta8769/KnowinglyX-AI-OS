@@ -13,6 +13,7 @@ from app.routes.agent import router as agent_router
 from app.routes.resume_rewrite import router as resume_rewrite_router
 from app.routes.interview import router as interview_router
 from app.routes.job_scanner import router as job_scanner_router
+from app.routes.job_match import router as job_match_router
 
 # Boot tool registry (registers file_create, file_read, exec_code)
 import app.tools  # noqa: F401
@@ -59,3 +60,4 @@ app.include_router(agent_router)
 app.include_router(resume_rewrite_router)
 app.include_router(interview_router)
 app.include_router(job_scanner_router)
+app.include_router(job_match_router)
