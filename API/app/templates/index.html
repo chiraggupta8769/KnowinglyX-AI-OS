@@ -59,6 +59,9 @@
     <button onclick="switchTab('rewrite')"  id="tab-rewrite"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">✏️ Rewrite PDF</button>
     <button onclick="switchTab('scanner')"  id="tab-scanner"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🔍 Job Scanner</button>
     <button onclick="switchTab('coach')"    id="tab-coach"     class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💬 Coach</button>
+    <button onclick="switchTab('linkedin')" id="tab-linkedin"  class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🔗 LinkedIn</button>
+    <button onclick="switchTab('salary')"   id="tab-salary"    class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💰 Salary</button>
+    <button onclick="switchTab('tracker')"  id="tab-tracker"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">📋 Tracker</button>
   </div>
 </div>
 
@@ -598,13 +601,14 @@ function switchTab(tab) {
   document.querySelectorAll('.pane').forEach(p=>p.classList.add('hidden'));
   const pane=document.getElementById('pane-'+tab);
   if(pane) pane.classList.remove('hidden');
-  const tabs=['home','jobs','analyze','interview','rewrite','scanner','coach'];
+  const tabs=['home','jobs','analyze','interview','rewrite','scanner','coach','linkedin','salary','tracker'];
   tabs.forEach(t=>{
     const el=document.getElementById('tab-'+t);
     if(el) el.className='px-4 py-3 text-sm font-medium whitespace-nowrap '+(t===tab?'tab-active text-indigo-400':'text-slate-400 hover:text-slate-200');
   });
   if(tab==='coach'&&_resumeText&&!window._wsReady) initWebSocket();
   if(tab==='jobs'&&_jobs.length===0) loadJobs();
+  if(tab==='tracker') setTimeout(renderTracker,50);
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -612,6 +616,212 @@ function x(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.textContent='⚠️ '+msg;el.classList.remove('hidden');}}
 function clearErr(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
 function copyEl(id,btn){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent).then(()=>{const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,2000);});}
+
+// ── LinkedIn Outreach ──────────────────────────────────────
+async function runLinkedIn() {
+  if (!requireResume('li-error')) return;
+  clearErr('li-error');
+  const btn=document.getElementById('li-btn'),t=document.getElementById('li-btn-text');
+  btn.disabled=true; t.textContent='⏳ Generating messages...';
+  document.getElementById('li-results').classList.add('hidden');
+  try {
+    const res=await fetch('/tools/linkedin-outreach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      resume_text:_resumeText,
+      job_title:document.getElementById('li-role').value.trim(),
+      company:document.getElementById('li-company').value.trim(),
+      recruiter_name:document.getElementById('li-name').value.trim(),
+      context:document.getElementById('li-context').value
+    })});
+    const data=await res.json();
+    if(!data.success) throw new Error(data.error||'Failed');
+    const d=data.data;
+    let html='';
+    (d.messages||[]).forEach((m,i)=>{
+      html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="badge bg-indigo-900 text-indigo-200">${x(m.label)}</span>
+          <button onclick="copyEl('li-msg-${i}',this)" class="text-xs text-slate-400 hover:text-white">Copy</button>
+        </div>
+        <p id="li-msg-${i}" class="text-sm text-slate-200 leading-relaxed">${x(m.message)}</p>
+        <div class="text-xs text-slate-500 mt-2">${m.message?.length||0} chars</div>
+      </div>`;
+    });
+    if(d.tips?.length) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-amber-400 mb-2">💡 PRO TIPS</h4><ul class="space-y-1">${d.tips.map(t=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-amber-400">→</span>${x(t)}</li>`).join('')}</ul></div>`;
+    document.getElementById('li-results').innerHTML=html;
+    document.getElementById('li-results').classList.remove('hidden');
+  } catch(e) { showErr('li-error',e.message); }
+  finally { btn.disabled=false; t.textContent='🔗 Generate Messages'; }
+}
+
+// ── Salary Intel ───────────────────────────────────────────
+async function runSalaryIntel() {
+  if (!requireResume('sal-error')) return;
+  clearErr('sal-error');
+  const btn=document.getElementById('sal-btn'),t=document.getElementById('sal-btn-text');
+  btn.disabled=true; t.textContent='⏳ Analyzing market...';
+  document.getElementById('sal-results').classList.add('hidden');
+  try {
+    const res=await fetch('/tools/salary-intel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      resume_text:_resumeText,
+      target_role:document.getElementById('sal-role').value.trim(),
+      location:document.getElementById('sal-location').value.trim()
+    })});
+    const data=await res.json();
+    if(!data.success) throw new Error(data.error||'Failed');
+    const d=data.data;
+    document.getElementById('sal-results').innerHTML=`
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center md:col-span-2">
+          <div class="text-2xl font-bold text-emerald-400">${x(d.salary_range_inr||'—')}</div>
+          <div class="text-sm text-slate-400 mt-1">${x(d.salary_range_usd||'')}</div>
+          <div class="text-xs text-slate-500 mt-1">${x(d.target_role||'')} · ${x(d.experience_band||'')}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
+          <div class="text-xs text-slate-400 mb-1">Market value</div>
+          <div class="text-sm font-semibold text-white">${x(d.current_market_value||'—')}</div>
+        </div>
+      </div>
+      <div class="grid md:grid-cols-3 gap-3 mb-4">
+        <div class="bg-rose-950 border border-rose-800 rounded-xl p-3 text-center"><div class="text-xs text-rose-400 mb-1">Floor (don't go below)</div><div class="text-sm font-bold text-rose-200">${x(d.negotiation_floor||'—')}</div></div>
+        <div class="bg-emerald-950 border border-emerald-800 rounded-xl p-3 text-center"><div class="text-xs text-emerald-400 mb-1">Target (aim for this)</div><div class="text-sm font-bold text-emerald-200">${x(d.negotiation_target||'—')}</div></div>
+        <div class="bg-indigo-950 border border-indigo-800 rounded-xl p-3 text-center"><div class="text-xs text-indigo-400 mb-1">Ceiling (funded cos)</div><div class="text-sm font-bold text-indigo-200">${x(d.negotiation_ceiling||'—')}</div></div>
+      </div>
+      ${d.top_paying_sectors?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-3"><h4 class="text-xs font-semibold text-amber-400 mb-2">🏢 TOP PAYING SECTORS</h4><div class="flex flex-wrap gap-2">${d.top_paying_sectors.map(s=>`<span class="badge bg-amber-900 text-amber-200">${x(s)}</span>`).join('')}</div></div>`:''}
+      ${d.skills_that_increase_pay?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-3"><h4 class="text-xs font-semibold text-sky-400 mb-2">📈 SKILLS THAT INCREASE YOUR PAY</h4><div class="flex flex-wrap gap-2">${d.skills_that_increase_pay.map(s=>`<span class="badge bg-sky-900 text-sky-200">${x(s)}</span>`).join('')}</div></div>`:''}
+      ${d.negotiation_tips?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-violet-400 mb-2">💬 NEGOTIATION TIPS</h4><ul class="space-y-1">${d.negotiation_tips.map(t=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-violet-400">→</span>${x(t)}</li>`).join('')}</ul></div>`:''}
+    `;
+    document.getElementById('sal-results').classList.remove('hidden');
+  } catch(e) { showErr('sal-error',e.message); }
+  finally { btn.disabled=false; t.textContent='💰 Analyze My Market Value'; }
+}
+
+// ── Application Tracker ────────────────────────────────────
+let _applications = JSON.parse(localStorage.getItem('kx_apps')||'[]');
+const APP_STATUSES = ['Applied','Phone Screen','Interview','Offer','Rejected','Ghosted'];
+const STATUS_COLORS = {Applied:'bg-indigo-900 text-indigo-200',['Phone Screen']:'bg-sky-900 text-sky-200',Interview:'bg-amber-900 text-amber-200',Offer:'bg-emerald-900 text-emerald-200',Rejected:'bg-rose-900 text-rose-200',Ghosted:'bg-slate-700 text-slate-400'};
+
+function saveApps(){localStorage.setItem('kx_apps',JSON.stringify(_applications));}
+
+function renderTracker() {
+  const el=document.getElementById('tracker-list');
+  if(!_applications.length){el.innerHTML='<div class="text-center py-12 text-slate-500"><div class="text-4xl mb-3">📋</div><div class="text-sm">No applications tracked yet.<br/>Add one below or click "Track" on any job.</div></div>';return;}
+  const sorted=[..._applications].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  el.innerHTML=sorted.map((app,i)=>`
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1">
+          <div class="font-semibold text-white text-sm">${x(app.title)}</div>
+          <div class="text-slate-400 text-xs mt-0.5">${x(app.company)} · Applied ${app.date}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select onchange="updateStatus(${_applications.indexOf(app)},this.value)" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2 py-1 focus:outline-none">
+            ${APP_STATUSES.map(s=>`<option value="${s}" ${app.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <button onclick="removeApp(${_applications.indexOf(app)})" class="text-slate-600 hover:text-rose-400 text-lg leading-none">&times;</button>
+        </div>
+      </div>
+      ${app.notes?`<div class="text-xs text-slate-400 mt-2 bg-slate-800 rounded-lg px-3 py-2">${x(app.notes)}</div>`:''}
+      <div class="flex gap-2 mt-3">
+        <span class="badge ${STATUS_COLORS[app.status]||'bg-slate-700 text-slate-300'}">${app.status}</span>
+        ${app.url?`<a href="${x(app.url)}" target="_blank" class="badge bg-slate-800 text-slate-300 hover:bg-slate-700">View Job ↗</a>`:''}
+      </div>
+    </div>`).join('');
+  // Stats
+  const stats=APP_STATUSES.reduce((acc,s)=>{acc[s]=_applications.filter(a=>a.status===s).length;return acc;},{});
+  document.getElementById('tracker-stats').innerHTML=`
+    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+      ${APP_STATUSES.map(s=>`<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center"><div class="text-xl font-bold text-white">${stats[s]||0}</div><div class="text-xs text-slate-400">${s}</div></div>`).join('')}
+    </div>`;
+}
+
+function addApplication() {
+  const title=document.getElementById('app-title').value.trim();
+  const company=document.getElementById('app-company').value.trim();
+  if(!title||!company){showErr('tracker-error','Job title and company are required.');return;}
+  clearErr('tracker-error');
+  _applications.push({
+    id:Date.now().toString(),
+    title,company,
+    url:document.getElementById('app-url').value.trim(),
+    notes:document.getElementById('app-notes').value.trim(),
+    status:'Applied',
+    date:new Date().toLocaleDateString('en-IN')
+  });
+  saveApps();
+  document.getElementById('app-title').value='';
+  document.getElementById('app-company').value='';
+  document.getElementById('app-url').value='';
+  document.getElementById('app-notes').value='';
+  renderTracker();
+}
+
+function updateStatus(idx,status){if(_applications[idx]){_applications[idx].status=status;saveApps();renderTracker();}}
+function removeApp(idx){_applications.splice(idx,1);saveApps();renderTracker();}
+
+// Expose trackJob for job cards
+window.trackJob=function(idx){
+  const j=_jobs[idx];if(!j)return;
+  _applications.push({id:Date.now().toString(),title:j.title,company:j.company,url:j.url,notes:'',status:'Applied',date:new Date().toLocaleDateString('en-IN')});
+  saveApps();
+  switchTab('tracker');
+};
 </script>
+
+<!-- ======= LINKEDIN TAB ======= -->
+<div id="pane-linkedin" class="pane hidden max-w-3xl mx-auto px-5 py-6">
+  <h2 class="text-xl font-bold text-white mb-1">LinkedIn Outreach Generator</h2>
+  <p class="text-slate-400 text-sm mb-5">Generate personalized recruiter messages that actually get replies — 3 variants, ready to copy.</p>
+  <div class="grid md:grid-cols-2 gap-3 mb-4">
+    <input id="li-name" type="text" placeholder="Recruiter name (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+    <input id="li-company" type="text" placeholder="Company name (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+    <input id="li-role" type="text" placeholder="Target role (e.g. Operations Manager)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+    <select id="li-context" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
+      <option value="cold_outreach">Cold Outreach</option>
+      <option value="referral_ask">Referral Request</option>
+      <option value="follow_up">Post-Application Follow-up</option>
+    </select>
+  </div>
+  <button onclick="runLinkedIn()" id="li-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-4">
+    <span id="li-btn-text">🔗 Generate Messages</span>
+  </button>
+  <div id="li-results" class="hidden space-y-3"></div>
+  <div id="li-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+</div>
+
+<!-- ======= SALARY TAB ======= -->
+<div id="pane-salary" class="pane hidden max-w-3xl mx-auto px-5 py-6">
+  <h2 class="text-xl font-bold text-white mb-1">Salary Intelligence</h2>
+  <p class="text-slate-400 text-sm mb-5">Know your market worth — floor, target, and ceiling — before you negotiate.</p>
+  <div class="grid md:grid-cols-2 gap-3 mb-4">
+    <input id="sal-role" type="text" placeholder="Target role (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+    <input id="sal-location" type="text" placeholder="Location (e.g. Mumbai, Remote India)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+  </div>
+  <button onclick="runSalaryIntel()" id="sal-btn" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-4">
+    <span id="sal-btn-text">💰 Analyze My Market Value</span>
+  </button>
+  <div id="sal-results" class="hidden space-y-3"></div>
+  <div id="sal-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+</div>
+
+<!-- ======= TRACKER TAB ======= -->
+<div id="pane-tracker" class="pane hidden max-w-4xl mx-auto px-5 py-6" onshow="renderTracker()">
+  <h2 class="text-xl font-bold text-white mb-1">Application Tracker</h2>
+  <p class="text-slate-400 text-sm mb-5">Track every job you apply to — status, follow-ups, notes. Never lose track of an opportunity.</p>
+  <div id="tracker-stats"></div>
+  <!-- Add form -->
+  <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-4">
+    <h3 class="text-sm font-semibold text-white mb-3">+ Add Application</h3>
+    <div class="grid md:grid-cols-2 gap-3 mb-3">
+      <input id="app-title" type="text" placeholder="Job title *" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      <input id="app-company" type="text" placeholder="Company *" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      <input id="app-url" type="url" placeholder="Job URL (optional)" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      <input id="app-notes" type="text" placeholder="Notes (optional)" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+    </div>
+    <button onclick="addApplication()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">Add Application</button>
+    <div id="tracker-error" class="hidden mt-2 text-rose-300 text-xs"></div>
+  </div>
+  <div id="tracker-list" class="space-y-3"></div>
+</div>
+
 </body>
 </html>
