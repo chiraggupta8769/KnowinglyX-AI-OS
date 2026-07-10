@@ -58,6 +58,7 @@ Resume: {body.resume_text[:2000]}"""
         skills=skills[:6],
         roles=roles[:4],
         limit=body.limit,
+        resume_text=body.resume_text,
     )
 
     return {

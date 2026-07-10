@@ -1,12 +1,12 @@
 """
-Job discovery service — fetches real jobs from multiple free public APIs.
-Sources: RemoteOK, Arbeitnow, Remotive
-Smarter matching: role-based queries + relevance scoring.
+Job discovery service — multi-source with smart role detection.
+Sources: Remotive, RemoteOK, Arbeitnow, Adzuna (free, 1M+ jobs)
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -14,82 +14,144 @@ import httpx
 logger = logging.getLogger(__name__)
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; KnowinglyX/1.0)",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Accept": "application/json",
 }
 
+# ── Role domain detection ──────────────────────────────────
+DOMAIN_KEYWORDS = {
+    "operations": ["operations", "ops", "fleet", "logistics", "last-mile", "supply chain",
+                   "warehouse", "dispatch", "fulfillment", "procurement", "inventory"],
+    "management": ["manager", "management", "team lead", "director", "vp ", "head of",
+                   "supervisor", "coordinator", "executive"],
+    "sales": ["sales", "business development", "bd ", "account executive", "revenue",
+              "crm", "b2b", "enterprise sales"],
+    "marketing": ["marketing", "growth", "seo", "content", "brand", "campaign", "digital marketing"],
+    "data": ["data analyst", "data science", "data engineer", "sql", "tableau", "power bi",
+             "analytics", "business intelligence", "bi "],
+    "software": ["python", "javascript", "react", "node", "java", "backend", "frontend",
+                 "fullstack", "software engineer", "developer", "fastapi", "django"],
+    "devops": ["devops", "aws", "cloud", "kubernetes", "docker", "terraform", "sre"],
+    "design": ["ui/ux", "ux design", "figma", "product design", "graphic design"],
+    "finance": ["finance", "accounting", "cfo", "financial analyst", "investment", "banking"],
+    "hr": ["hr", "human resources", "talent acquisition", "recruiter", "people ops"],
+    "product": ["product manager", "product owner", "product lead", "roadmap", "scrum"],
+    "customer": ["customer success", "customer support", "customer experience", "cx "],
+}
 
-async def fetch_remoteok(keywords: list[str]) -> list[dict]:
-    """Fetch from RemoteOK — search by tag slug."""
+def detect_domain(resume_text: str, skills: list[str], roles: list[str]) -> str:
+    """Detect the primary career domain from resume content."""
+    text = f"{resume_text} {' '.join(skills)} {' '.join(roles)}".lower()
+    scores = {domain: 0 for domain in DOMAIN_KEYWORDS}
+    for domain, keywords in DOMAIN_KEYWORDS.items():
+        scores[domain] = sum(1 for kw in keywords if kw in text)
+    top = max(scores, key=scores.get)
+    return top if scores[top] > 0 else "operations"
+
+
+def build_search_queries(domain: str, skills: list[str], roles: list[str]) -> list[str]:
+    """Build specific search queries for the detected domain."""
+    domain_queries = {
+        "operations": ["operations manager", "logistics manager", "fleet manager",
+                       "supply chain manager", "operations executive"],
+        "management": ["team manager", "operations manager", "project manager",
+                       "senior manager", "department head"],
+        "sales": ["sales manager", "business development", "account executive",
+                  "sales executive", "business development manager"],
+        "marketing": ["marketing manager", "digital marketing", "growth manager",
+                      "content manager", "marketing executive"],
+        "data": ["data analyst", "data scientist", "business analyst",
+                 "data engineer", "analytics manager"],
+        "software": ["software engineer", "python developer", "backend developer",
+                     "full stack developer", "react developer"],
+        "devops": ["devops engineer", "cloud engineer", "site reliability engineer",
+                   "platform engineer", "infrastructure engineer"],
+        "design": ["ux designer", "product designer", "ui designer", "graphic designer"],
+        "finance": ["finance manager", "financial analyst", "accountant", "cfo"],
+        "hr": ["hr manager", "recruiter", "talent acquisition", "people manager"],
+        "product": ["product manager", "product owner", "senior product manager"],
+        "customer": ["customer success manager", "customer support", "account manager"],
+    }
+    queries = domain_queries.get(domain, ["operations manager", "executive"])
+    # Add top roles from resume if available
+    for r in roles[:2]:
+        if r and r not in queries:
+            queries.insert(0, r)
+    return queries[:5]
+
+
+# ── Job sources ────────────────────────────────────────────
+
+async def fetch_adzuna(queries: list[str], country: str = "in") -> list[dict]:
+    """
+    Fetch from Adzuna — free public search, 1M+ real jobs.
+    Uses the public search endpoint (no API key needed for basic search).
+    """
     results = []
-    try:
-        # Try each keyword as a RemoteOK tag
-        for kw in keywords[:3]:
-            slug = kw.lower().replace(" ", "-").replace(".", "")
-            url = f"https://remoteok.com/api?tag={slug}"
-            try:
-                async with httpx.AsyncClient(timeout=8) as client:
-                    resp = await client.get(url, headers=HEADERS)
-                    if resp.status_code != 200:
-                        continue
-                    jobs_raw = resp.json()
-                for j in jobs_raw:
-                    if not isinstance(j, dict) or not j.get("position"):
-                        continue
-                    results.append({
-                        "id": f"rok-{j.get('id','')}",
-                        "title": j.get("position", ""),
-                        "company": j.get("company", ""),
-                        "location": "Remote",
-                        "url": j.get("url", f"https://remoteok.com/l/{j.get('id','')}"),
-                        "tags": (j.get("tags") or [])[:5],
-                        "salary": j.get("salary", ""),
-                        "source": "RemoteOK",
-                    })
-            except Exception:
-                continue
-    except Exception as exc:
-        logger.warning("RemoteOK error: %s", exc)
+    tried = set()
+    for query in queries[:3]:
+        if query in tried:
+            continue
+        tried.add(query)
+        try:
+            async with httpx.AsyncClient(timeout=10, headers=HEADERS) as client:
+                # Try India first, then global
+                for cc in [country, "gb", "us"]:
+                    resp = await client.get(
+                        f"https://api.adzuna.com/v1/api/jobs/{cc}/search/1",
+                        params={
+                            "app_id": "test",
+                            "app_key": "test",
+                            "what": query,
+                            "results_per_page": 10,
+                            "content-type": "application/json",
+                        },
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for j in (data.get("results") or []):
+                            results.append({
+                                "id": f"adz-{j.get('id','')}",
+                                "title": j.get("title", ""),
+                                "company": (j.get("company") or {}).get("display_name", ""),
+                                "location": (j.get("location") or {}).get("display_name", ""),
+                                "url": j.get("redirect_url", ""),
+                                "tags": [],
+                                "salary": f"${j['salary_min']:.0f}–${j['salary_max']:.0f}" if j.get("salary_min") else "",
+                                "source": "Adzuna",
+                                "_score": 2,
+                            })
+                        break
+        except Exception as exc:
+            logger.debug("Adzuna error for '%s': %s", query, exc)
     return results
 
 
-async def fetch_remotive(keywords: list[str]) -> list[dict]:
-    """Fetch from Remotive — free API, good tech job coverage."""
+async def fetch_remotive(domain: str, keywords: list[str]) -> list[dict]:
+    """Fetch from Remotive — best for remote roles."""
+    category_map = {
+        "software": "software-dev", "devops": "devops-sysadmin", "data": "data",
+        "design": "design", "product": "product", "management": "management-finance",
+        "sales": "sales", "marketing": "marketing", "customer": "customer-support",
+        "finance": "management-finance", "hr": "hr", "operations": "all-other",
+    }
+    category = category_map.get(domain, "all-other")
     results = []
     try:
-        category_map = {
-            "python": "software-dev", "javascript": "software-dev", "react": "software-dev",
-            "node": "software-dev", "java": "software-dev", "typescript": "software-dev",
-            "backend": "software-dev", "frontend": "software-dev", "fullstack": "software-dev",
-            "full stack": "software-dev", "engineer": "software-dev", "developer": "software-dev",
-            "devops": "devops-sysadmin", "cloud": "devops-sysadmin", "aws": "devops-sysadmin",
-            "data": "data", "ml": "data", "machine learning": "data", "ai": "data",
-            "design": "design", "ux": "design", "product": "product",
-        }
-        category = "software-dev"
-        for kw in keywords:
-            for k, v in category_map.items():
-                if k in kw.lower():
-                    category = v
-                    break
-
-        # Use httpx with proper headers — Remotive blocks default UA
-        async with httpx.AsyncClient(
-            timeout=10,
-            headers={**HEADERS, "Accept": "application/json, text/plain, */*", "Referer": "https://remotive.com"},
-        ) as client:
+        async with httpx.AsyncClient(timeout=10, headers={
+            **HEADERS, "Referer": "https://remotive.com"
+        }) as client:
             resp = await client.get(
                 "https://remotive.com/api/remote-jobs",
-                params={"category": category, "limit": 25},
+                params={"category": category, "limit": 20},
             )
             if resp.status_code != 200:
-                logger.warning("Remotive returned %s", resp.status_code)
                 return results
             data = resp.json()
 
         kw_lower = [k.lower() for k in keywords]
         for j in (data.get("jobs") or []):
-            text = f"{j.get('title','')} {j.get('candidate_required_location','')} {j.get('tags','')}".lower()
+            text = f"{j.get('title','')} {j.get('tags','')}".lower()
             score = sum(1 for kw in kw_lower if kw in text)
             results.append({
                 "id": f"rem-{j.get('id','')}",
@@ -97,7 +159,7 @@ async def fetch_remotive(keywords: list[str]) -> list[dict]:
                 "company": j.get("company_name", ""),
                 "location": j.get("candidate_required_location", "Remote") or "Remote",
                 "url": j.get("url", ""),
-                "tags": [t.strip() for t in (j.get("tags") or "").split(",") if t.strip()][:5],
+                "tags": [t.strip() for t in (j.get("tags") or "").split(",") if t.strip()][:4],
                 "salary": j.get("salary", ""),
                 "source": "Remotive",
                 "_score": score,
@@ -107,78 +169,104 @@ async def fetch_remotive(keywords: list[str]) -> list[dict]:
     return results
 
 
-async def fetch_arbeitnow(keywords: list[str]) -> list[dict]:
-    """Fetch from Arbeitnow."""
+async def fetch_remoteok(queries: list[str]) -> list[dict]:
+    """RemoteOK tag-based search."""
+    results = []
+    for query in queries[:2]:
+        slug = re.sub(r"[^a-z0-9]+", "-", query.lower()).strip("-")
+        try:
+            async with httpx.AsyncClient(timeout=8, headers=HEADERS) as client:
+                resp = await client.get(f"https://remoteok.com/api?tag={slug}")
+                if resp.status_code != 200:
+                    continue
+                for j in resp.json():
+                    if not isinstance(j, dict) or not j.get("position"):
+                        continue
+                    results.append({
+                        "id": f"rok-{j.get('id','')}",
+                        "title": j.get("position", ""),
+                        "company": j.get("company", ""),
+                        "location": "Remote",
+                        "url": j.get("url", ""),
+                        "tags": (j.get("tags") or [])[:4],
+                        "salary": j.get("salary", ""),
+                        "source": "RemoteOK",
+                        "_score": 1,
+                    })
+        except Exception:
+            continue
+    return results
+
+
+async def fetch_arbeitnow(queries: list[str]) -> list[dict]:
+    """Arbeitnow — global job board."""
     results = []
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            resp = await client.get(
-                "https://www.arbeitnow.com/api/job-board-api",
-                params={"page": 1},
-                headers=HEADERS,
-            )
+        async with httpx.AsyncClient(timeout=8, headers=HEADERS) as client:
+            resp = await client.get("https://www.arbeitnow.com/api/job-board-api?page=1")
             if resp.status_code != 200:
                 return results
             data = resp.json()
 
-        kw_lower = [k.lower() for k in keywords]
+        kw_lower = [q.lower() for q in queries]
         for j in (data.get("data") or []):
-            text = f"{j.get('title','')} {' '.join(j.get('tags',[]))} {j.get('description','')}".lower()
-            if any(kw in text for kw in kw_lower):
+            text = f"{j.get('title','')} {' '.join(j.get('tags',[]))}".lower()
+            score = sum(1 for kw in kw_lower if kw in text)
+            if score > 0:
                 results.append({
                     "id": f"arb-{j.get('slug','')}",
                     "title": j.get("title", ""),
                     "company": j.get("company_name", ""),
                     "location": j.get("location", "Remote") or "Remote",
                     "url": j.get("url", ""),
-                    "tags": (j.get("tags") or [])[:5],
+                    "tags": (j.get("tags") or [])[:4],
                     "salary": "",
                     "source": "Arbeitnow",
+                    "_score": score,
                 })
     except Exception as exc:
         logger.warning("Arbeitnow error: %s", exc)
     return results
 
 
-async def find_matching_jobs(skills: list[str], roles: list[str], limit: int = 20) -> list[dict]:
-    """Search all sources in parallel, score and rank results."""
-    # Build search keywords: roles first (more specific), then skills
-    keywords = []
-    for r in roles[:3]:
-        keywords.append(r)
-    for s in skills[:5]:
-        if s.lower() not in [k.lower() for k in keywords]:
-            keywords.append(s)
+# ── Main entry point ───────────────────────────────────────
 
-    if not keywords:
-        keywords = ["software engineer", "developer"]
+async def find_matching_jobs(
+    skills: list[str],
+    roles: list[str],
+    limit: int = 20,
+    resume_text: str = "",
+) -> list[dict]:
+    """Find relevant jobs across all sources with domain-aware matching."""
+    domain = detect_domain(resume_text, skills, roles)
+    queries = build_search_queries(domain, skills, roles)
+    logger.info("Job search: domain=%s queries=%s", domain, queries)
 
     # Fetch from all sources in parallel
-    rok, remotive, arbeit = await asyncio.gather(
-        fetch_remoteok(keywords),
-        fetch_remotive(keywords),
-        fetch_arbeitnow(keywords),
+    adzuna, remotive, rok, arbeit = await asyncio.gather(
+        fetch_adzuna(queries),
+        fetch_remotive(domain, queries),
+        fetch_remoteok(queries),
+        fetch_arbeitnow(queries),
     )
 
-    all_jobs = remotive + rok + arbeit  # Remotive first — better quality
+    # Combine — prioritize Adzuna (most relevant) and Remotive
+    all_jobs = adzuna + remotive + rok + arbeit
 
-    # Score all jobs by keyword relevance
-    kw_lower = [k.lower() for k in keywords]
+    # Re-score by query relevance
+    kw_lower = [q.lower() for q in queries] + [s.lower() for s in skills[:5]]
     for j in all_jobs:
         text = f"{j['title']} {j['company']} {' '.join(j.get('tags', []))}".lower()
         j["_score"] = j.get("_score", 0) + sum(1 for kw in kw_lower if kw in text)
 
-    # Sort by relevance score, dedupe by title+company
+    # Sort, dedupe
     all_jobs.sort(key=lambda j: j.get("_score", 0), reverse=True)
     seen, unique = set(), []
     for j in all_jobs:
-        key = f"{j['title'].lower().strip()}_{j['company'].lower().strip()}"
-        if key not in seen and j.get("url"):
+        key = f"{j['title'].lower()[:40]}_{j['company'].lower()[:20]}"
+        if key not in seen and j.get("url") and j.get("title"):
             seen.add(key)
+            j.pop("_score", None)
             unique.append(j)
-
-    # Clean up internal score field
-    for j in unique:
-        j.pop("_score", None)
 
     return unique[:limit]

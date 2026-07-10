@@ -435,14 +435,33 @@ async function findJobs() {
     if (!data.success) throw new Error(data.error || 'Failed');
     if (!data.jobs?.length) { document.getElementById('jm-results').innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No matching jobs found right now. Try again later.</p>'; document.getElementById('jm-results').classList.remove('hidden'); return; }
     let html = `<p class="text-gray-400 text-sm mb-3">Found <strong class="text-white">${data.count}</strong> matching jobs</p>`;
-    data.jobs.forEach(j => { html += `<div class="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-start justify-between gap-4"><div class="flex-1 min-w-0"><div class="font-semibold text-sm text-white truncate">${x(j.title)}</div><div class="text-gray-400 text-xs mt-0.5">${x(j.company)} · ${x(j.location)}</div>${j.tags?.length?`<div class="flex flex-wrap gap-1 mt-2">${j.tags.slice(0,4).map(t=>`<span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">${x(t)}</span>`).join('')}</div>`:''}<div class="text-xs text-gray-500 mt-1">via ${x(j.source)}</div></div><div class="flex flex-col gap-2 flex-shrink-0"><a href="${x(j.url)}" target="_blank" class="text-xs bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-center">View Job</a><button onclick="getApplyKit('${x(j.title).replace(/'/g,"\\'")}','${x(j.company).replace(/'/g,"\\'")}'')" class="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg">Apply Kit ⚡</button></div></div>`; });
+    data.jobs.forEach((j, idx) => {
+      window._jobs = window._jobs || [];
+      window._jobs[idx] = j;
+      html += `<div class="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm text-white truncate">${x(j.title)}</div>
+          <div class="text-gray-400 text-xs mt-0.5">${x(j.company)} · ${x(j.location)}</div>
+          ${j.tags?.length ? `<div class="flex flex-wrap gap-1 mt-2">${j.tags.slice(0,4).map(t=>`<span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">${x(t)}</span>`).join('')}</div>` : ''}
+          ${j.salary ? `<div class="text-emerald-400 text-xs mt-1">💰 ${x(j.salary)}</div>` : ''}
+          <div class="text-xs text-gray-500 mt-1">via ${x(j.source)}</div>
+        </div>
+        <div class="flex flex-col gap-2 flex-shrink-0">
+          <a href="${x(j.url)}" target="_blank" rel="noopener" class="text-xs bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-center">View Job</a>
+          <button onclick="getApplyKit(${idx})" class="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg">Apply Kit ⚡</button>
+        </div>
+      </div>`;
+    });
     document.getElementById('jm-results').innerHTML = html;
     document.getElementById('jm-results').classList.remove('hidden');
   } catch(e) { showErr('jm-error', e.message); }
   finally { btn.disabled = false; btnText.textContent = '💼 Find Matching Jobs'; }
 }
 
-async function getApplyKit(title, company) {
+async function getApplyKit(idx) {
+  const j = (window._jobs || [])[idx];
+  if (!j) return;
+  const title = j.title, company = j.company;
   document.getElementById('kit-title').textContent = `Apply Kit — ${title} at ${company}`;
   document.getElementById('kit-content').innerHTML = '<div class="text-center py-8 text-gray-400">⏳ Generating Apply Kit...</div>';
   document.getElementById('kit-modal').classList.remove('hidden');
