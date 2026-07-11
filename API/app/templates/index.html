@@ -165,8 +165,12 @@
 <!-- ======= INTERVIEW TAB ======= -->
 <div id="pane-interview" class="pane hidden max-w-4xl mx-auto px-5 py-6">
   <h2 class="text-xl font-bold text-white mb-1">Interview Prep</h2>
-  <p class="text-slate-400 text-sm mb-5">Paste the job description — get personalized questions + coached answers.</p>
-  <textarea id="iv-job" rows="10" placeholder="Paste the job description..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white resize-none focus:outline-none focus:border-indigo-500 mb-4"></textarea>
+  <p class="text-slate-400 text-sm mb-5">Tell us what role you're targeting — we'll generate personalized questions and coached answers from your resume. No JD needed.</p>
+  <div class="mb-4">
+    <label class="block text-xs font-semibold text-slate-400 mb-2">TARGET ROLE <span class="text-slate-500 font-normal">(or leave blank to use your top role)</span></label>
+    <input id="iv-role" type="text" placeholder="e.g. Operations Manager, City Head, Cluster Manager..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+  </div>
+  <div id="iv-role-chips" class="flex flex-wrap gap-2 mb-5"></div>
   <button onclick="runInterviewPrep()" id="iv-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
     <span id="iv-btn-text">🎯 Generate Interview Prep</span>
   </button>
@@ -177,9 +181,12 @@
 <!-- ======= REWRITE PDF TAB ======= -->
 <div id="pane-rewrite" class="pane hidden max-w-3xl mx-auto px-5 py-6">
   <h2 class="text-xl font-bold text-white mb-1">Rewrite Resume as PDF</h2>
-  <p class="text-slate-400 text-sm mb-5">Paste a job description — we rewrite your resume for that role and export an ATS-friendly PDF.</p>
-  <textarea id="rw-job" rows="10" placeholder="Paste the job description..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white resize-none focus:outline-none focus:border-indigo-500 mb-3"></textarea>
-  <input id="rw-role" type="text" placeholder="Target role (e.g. Operations Manager)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 mb-4"/>
+  <p class="text-slate-400 text-sm mb-5">Tell us the role — we tailor your resume for it and export an ATS-optimized PDF. No JD pasting required.</p>
+  <div class="mb-3">
+    <label class="block text-xs font-semibold text-slate-400 mb-2">TARGET ROLE</label>
+    <input id="rw-role" type="text" placeholder="e.g. Operations Manager, City Head, Supply Chain Lead..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+  </div>
+  <div id="rw-role-chips" class="flex flex-wrap gap-2 mb-5"></div>
   <button onclick="runRewritePDF()" id="rw-btn" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
     <span id="rw-btn-text">📄 Rewrite & Download ATS PDF</span>
   </button>
@@ -259,6 +266,7 @@ async function handleResumeUpload(file) {
     document.getElementById('gate').classList.add('hidden');
     switchTab('home');
     loadDashboard();
+    populateRoleChips();
   } catch(e) {
     document.getElementById('nav-upload').innerHTML = '📄 Upload Resume';
     alert('Could not read PDF: ' + e.message);
@@ -428,10 +436,14 @@ function refreshCard(idx, container) {
 
 async function tailorJob(idx) {
   const j = _jobs[idx]; if (!j) return;
-  if (!_resumeText) return;
-  document.getElementById('rw-job').value = `${j.title} at ${j.company}\n${j.tags?.join(', ')||''}`;
   document.getElementById('rw-role').value = j.title;
   switchTab('rewrite');
+  populateRoleChips();
+  setTimeout(() => {
+    document.querySelectorAll('#rw-role-chips .chip-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim() === j.title);
+    });
+  }, 100);
 }
 
 // ── Apply Kit ──────────────────────────────────────────────
@@ -491,16 +503,16 @@ async function runAnalysis() {
 // ── Rewrite PDF ────────────────────────────────────────────
 async function runRewritePDF() {
   if (!requireResume('rw-error')) return;
-  const job=document.getElementById('rw-job').value.trim();
-  if (!job) { showErr('rw-error','Please paste a job description.'); return; }
+  const role = document.getElementById('rw-role').value.trim() || (_resumeRoles[0] || 'my target role');
   clearErr('rw-error');
   const btn=document.getElementById('rw-btn'),t=document.getElementById('rw-btn-text');
-  btn.disabled=true; t.textContent='⏳ Rewriting... (~30s)';
+  btn.disabled=true; t.textContent='⏳ Rewriting for ' + role + '... (~30s)';
   try {
-    const res=await fetch('/resume/rewrite/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:job,target_role:document.getElementById('rw-role').value.trim()})});
+    const syntheticJD = `Rewrite this resume to be optimally tailored for: ${role}. Emphasize relevant experience and skills.`;
+    const res=await fetch('/resume/rewrite/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:syntheticJD,target_role:role})});
     if (!res.ok) { const e=await res.json(); throw new Error(e.detail||'Rewrite failed'); }
     const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url; a.download='ats-optimized-resume.pdf'; a.click(); URL.revokeObjectURL(url);
+    a.href=url; a.download=`${role.toLowerCase().replace(/\s+/g,'-')}-resume.pdf`; a.click(); URL.revokeObjectURL(url);
     t.textContent='✅ Downloaded!'; setTimeout(()=>t.textContent='📄 Rewrite & Download ATS PDF',3000);
   } catch(e) { showErr('rw-error',e.message); }
   finally { btn.disabled=false; }
@@ -509,24 +521,46 @@ async function runRewritePDF() {
 // ── Interview Prep ─────────────────────────────────────────
 async function runInterviewPrep() {
   if (!requireResume('iv-error')) return;
-  const job=document.getElementById('iv-job').value.trim();
-  if (!job) { showErr('iv-error','Please paste a job description.'); return; }
+  // Use typed role, chip-selected role, or top role from resume
+  const role = document.getElementById('iv-role').value.trim()
+    || window._ivSelectedRole
+    || (_resumeRoles[0] || 'the target role');
+  // Build a JD-like description from the role + resume context
+  const syntheticJD = `Role: ${role}\nThis position requires someone with the candidate's background in ${_resumeSkills.slice(0,5).join(', ')}.`;
   clearErr('iv-error');
   const btn=document.getElementById('iv-btn'),t=document.getElementById('iv-btn-text');
-  btn.disabled=true; t.textContent='⏳ Generating...';
+  btn.disabled=true; t.textContent='⏳ Generating prep for ' + role + '...';
   document.getElementById('iv-results').classList.add('hidden');
   try {
-    const res=await fetch('/interview/prep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:job})});
+    const res=await fetch('/interview/prep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:syntheticJD})});
     const data=await res.json();
     if (!data.success) throw new Error(data.error||'Failed');
-    const d=data.data; let html='';
-    if(d.role_summary) html+=`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 text-sm text-indigo-200">💡 ${x(d.role_summary)}</div>`;
+    const d=data.data; let html=`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-3 text-sm text-indigo-200 mb-2">Preparing you for: <strong>${x(role)}</strong></div>`;
+    if(d.role_summary) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm text-slate-200">💡 ${x(d.role_summary)}</div>`;
     if(d.salary_range) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm text-white">💰 <strong>${x(d.salary_range)}</strong>${d.negotiation_tip?` · <span class="text-slate-400">${x(d.negotiation_tip)}</span>`:''}</div>`;
     (d.questions||[]).forEach((q,i)=>{html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-5"><div class="flex gap-2 mb-2"><span class="badge bg-indigo-900 text-indigo-300">${x(q.category||'')}</span><span class="text-xs text-slate-500">Q${i+1}</span></div><p class="font-semibold text-sm text-white mb-3">${x(q.question||'')}</p><div class="text-xs text-slate-400 mb-2">❓ ${x(q.why_asked||'')}</div><div class="bg-slate-800 rounded-lg p-3 text-sm text-slate-200 mb-2"><strong class="text-emerald-400">✅ Strong answer:</strong><br/>${x(q.coached_answer||'')}</div>${q.red_flags?`<div class="text-xs text-rose-400">⚠️ ${x(q.red_flags)}</div>`:''}</div>`;});
     document.getElementById('iv-results').innerHTML=html;
     document.getElementById('iv-results').classList.remove('hidden');
   } catch(e) { showErr('iv-error',e.message); }
   finally { btn.disabled=false; t.textContent='🎯 Generate Interview Prep'; }
+}
+
+function populateRoleChips() {
+  ['iv','rw'].forEach(prefix => {
+    const el = document.getElementById(prefix+'-role-chips');
+    if (!el || !_resumeRoles.length) return;
+    el.innerHTML = _resumeRoles.slice(0,5).map(r =>
+      `<button onclick="selectRoleChip('${prefix}','${r.replace(/'/g,"\\'")}')" class="chip-btn badge bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 text-xs">${x(r)}</button>`
+    ).join('');
+  });
+}
+window._ivSelectedRole = '';
+function selectRoleChip(prefix, role) {
+  if (prefix === 'iv') { document.getElementById('iv-role').value = role; window._ivSelectedRole = role; }
+  if (prefix === 'rw') { document.getElementById('rw-role').value = role; }
+  document.querySelectorAll(`#${prefix}-role-chips .chip-btn`).forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === role);
+  });
 }
 
 // ── Job Scanner ────────────────────────────────────────────
