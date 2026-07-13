@@ -345,6 +345,14 @@ function renderIntelBar(insight, total) {
 
 function fitClass(score) { return score >= 75 ? 'fit-high' : score >= 55 ? 'fit-mid' : 'fit-low'; }
 function fitLabel(score) { return score >= 75 ? 'Great fit' : score >= 55 ? 'Good fit' : 'Partial fit'; }
+function ghostBadge(ghost) {
+  if (!ghost) return '';
+  const colors = { green:'bg-emerald-900 text-emerald-300', yellow:'bg-amber-900 text-amber-300', red:'bg-rose-900 text-rose-300', gray:'bg-slate-800 text-slate-400' };
+  const icons  = { green:'🟢', yellow:'🟡', red:'🔴', gray:'⚪' };
+  const c = colors[ghost.color] || colors.gray;
+  const i = icons[ghost.color] || '⚪';
+  return `<span class="badge ${c}" title="${x(ghost.reason||'')}">${i} ${x(ghost.label||'')}</span>`;
+}
 
 function jobCardHTML(j, idx, container) {
   const saved = _savedJobs.includes(j.id);
@@ -356,6 +364,7 @@ function jobCardHTML(j, idx, container) {
         <div class="flex items-center gap-2 flex-wrap mb-1">
           <span class="font-semibold text-white text-sm leading-tight">${x(j.title)}</span>
           <span class="badge ${fc === 'fit-high' ? 'bg-emerald-900 text-emerald-300' : fc === 'fit-mid' ? 'bg-amber-900 text-amber-300' : 'bg-slate-800 text-slate-300'}">${j.fit_score || 0}% · ${fitLabel(j.fit_score||0)}</span>
+          ${ghostBadge(j.ghost)}
           ${saved ? '<span class="badge bg-emerald-900 text-emerald-300">★ Saved</span>' : ''}
         </div>
         <div class="text-slate-400 text-xs">${x(j.company)} · ${x(j.location)}</div>
