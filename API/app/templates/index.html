@@ -61,6 +61,7 @@
     <button onclick="switchTab('coach')"    id="tab-coach"     class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💬 Coach</button>
     <button onclick="switchTab('linkedin')" id="tab-linkedin"  class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🔗 LinkedIn</button>
     <button onclick="switchTab('salary')"   id="tab-salary"    class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💰 Salary</button>
+    <button onclick="switchTab('paths')"    id="tab-paths"    class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🚀 Career Paths</button>
     <button onclick="switchTab('tracker')"  id="tab-tracker"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">📋 Tracker</button>
   </div>
 </div>
@@ -644,7 +645,7 @@ function switchTab(tab) {
   document.querySelectorAll('.pane').forEach(p=>p.classList.add('hidden'));
   const pane=document.getElementById('pane-'+tab);
   if(pane) pane.classList.remove('hidden');
-  const tabs=['home','jobs','analyze','interview','rewrite','scanner','coach','linkedin','salary','tracker'];
+  const tabs=['home','jobs','interview','rewrite','scanner','linkedin','salary','coach','paths','tracker'];
   tabs.forEach(t=>{
     const el=document.getElementById('tab-'+t);
     if(el) el.className='px-4 py-3 text-sm font-medium whitespace-nowrap '+(t===tab?'tab-active text-indigo-400':'text-slate-400 hover:text-slate-200');
@@ -808,6 +809,138 @@ window.trackJob=function(idx){
   saveApps();
   switchTab('tracker');
 };
+
+// ── Career Path Simulator ──────────────────────────────────
+let _pathAmbition = 'balanced';
+function setAmbition(level) {
+  _pathAmbition = level;
+  ['conservative','balanced','ambitious'].forEach(l => {
+    const btn = document.getElementById('amb-'+l);
+    if (!btn) return;
+    btn.className = 'badge border px-4 py-2 text-xs transition-colors ' + (l===level
+      ? 'bg-indigo-900 text-indigo-200 border-indigo-700'
+      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700');
+  });
+}
+
+async function runCareerPaths() {
+  if (!requireResume('paths-error')) return;
+  clearErr('paths-error');
+  const btn = document.getElementById('paths-btn'), t = document.getElementById('paths-btn-text');
+  btn.disabled = true; t.textContent = '⏳ Mapping your future (~30s)...';
+  document.getElementById('paths-results').classList.add('hidden');
+  try {
+    const res = await fetch('/career-path/simulate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({resume_text: _resumeText, ambition: _pathAmbition})
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed');
+    renderCareerPaths(data.data);
+  } catch(e) { showErr('paths-error', e.message); }
+  finally { btn.disabled = false; t.textContent = '🚀 Simulate My Career Paths'; }
+}
+
+function renderCareerPaths(d) {
+  const PATH_COLORS = ['indigo','violet','teal'];
+  let html = '';
+
+  // Current position card
+  if (d.current_role) {
+    html += `<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+      <div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center text-lg">📍</div>
+      <div><div class="text-xs text-slate-400">You are here</div><div class="font-bold text-white">${x(d.current_role)}</div><div class="text-xs text-slate-400">${x(d.current_level||'')}</div></div>
+    </div>`;
+  }
+
+  // Path cards
+  (d.paths||[]).forEach((path, pi) => {
+    const col = PATH_COLORS[pi] || 'indigo';
+    const diffColor = path.difficulty==='Easy'?'text-emerald-400':path.difficulty==='Hard'?'text-rose-400':'text-amber-400';
+    html += `<div class="border border-${col}-800 rounded-2xl overflow-hidden">
+      <!-- Path header -->
+      <div class="bg-${col}-950 border-b border-${col}-800 px-5 py-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="font-bold text-white text-lg">${x(path.path_name||'')}</div>
+            <div class="text-sm text-slate-300 mt-0.5">${x(path.tagline||'')}</div>
+          </div>
+          <div class="flex flex-col items-end gap-1 flex-shrink-0">
+            <span class="badge bg-${col}-900 text-${col}-200">${x(path.type||'')}</span>
+            <span class="text-xs ${diffColor}">${x(path.difficulty||'')} path</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="bg-slate-900 p-5">
+        <div class="relative">
+          <!-- Vertical line -->
+          <div class="absolute left-4 top-6 bottom-0 w-0.5 bg-slate-700"></div>
+
+          <!-- Step 1: Next role -->
+          ${path.next_role ? `<div class="flex gap-4 mb-6 relative">
+            <div class="w-8 h-8 bg-${col}-700 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">1</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="font-semibold text-white">${x(path.next_role.title||'')}</span>
+                <span class="badge bg-emerald-900 text-emerald-300">${x(path.next_role.timeline||'')}</span>
+                ${path.next_role.salary_jump?`<span class="badge bg-amber-900 text-amber-300">${x(path.next_role.salary_jump)}</span>`:''}
+              </div>
+              ${path.next_role.skills_to_add?.length?`<div class="flex flex-wrap gap-1 mb-2">${path.next_role.skills_to_add.map(s=>`<span class="badge bg-slate-800 text-slate-300">+ ${x(s)}</span>`).join('')}</div>`:''}
+              ${path.next_role.how_to_get_there?`<div class="text-xs text-slate-400 bg-slate-800 rounded-lg px-3 py-2">${x(path.next_role.how_to_get_there)}</div>`:''}
+            </div>
+          </div>` : ''}
+
+          <!-- Step 2: Milestone -->
+          ${path.milestone_role ? `<div class="flex gap-4 mb-6 relative">
+            <div class="w-8 h-8 bg-${col}-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">2</div>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="font-semibold text-white">${x(path.milestone_role.title||'')}</span>
+                <span class="badge bg-indigo-900 text-indigo-300">${x(path.milestone_role.timeline||'')}</span>
+                ${path.milestone_role.salary_range?`<span class="badge bg-emerald-900 text-emerald-300">${x(path.milestone_role.salary_range)}</span>`:''}
+              </div>
+              ${path.milestone_role.skills_to_add?.length?`<div class="flex flex-wrap gap-1">${path.milestone_role.skills_to_add.map(s=>`<span class="badge bg-slate-800 text-slate-300">+ ${x(s)}</span>`).join('')}</div>`:''}
+            </div>
+          </div>` : ''}
+
+          <!-- Step 3: Peak -->
+          ${path.peak_role ? `<div class="flex gap-4 relative">
+            <div class="w-8 h-8 bg-amber-500 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">🏆</div>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="font-bold text-amber-300">${x(path.peak_role.title||'')}</span>
+                <span class="badge bg-slate-800 text-slate-400">${x(path.peak_role.timeline||'')}</span>
+                ${path.peak_role.salary_range?`<span class="badge bg-amber-900 text-amber-300">${x(path.peak_role.salary_range)}</span>`:''}
+              </div>
+              ${path.peak_role.impact?`<div class="text-xs text-slate-400">${x(path.peak_role.impact)}</div>`:''}
+            </div>
+          </div>` : ''}
+        </div>
+
+        <!-- Companies + Why -->
+        <div class="mt-5 pt-4 border-t border-slate-800 grid md:grid-cols-2 gap-4">
+          ${path.companies_hiring?.length?`<div><div class="text-xs font-semibold text-slate-400 mb-2">🏢 COMPANIES HIRING FOR THIS PATH</div><div class="flex flex-wrap gap-1">${path.companies_hiring.map(c=>`<span class="badge bg-slate-800 text-slate-300">${x(c)}</span>`).join('')}</div></div>`:''}
+          ${path.differentiation?`<div><div class="text-xs font-semibold text-slate-400 mb-2">⚡ WHY THIS BEATS STAYING PUT</div><div class="text-xs text-slate-300">${x(path.differentiation)}</div></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Action items
+  if (d.skills_that_open_most_doors?.length) {
+    html += `<div class="bg-slate-900 border border-slate-800 rounded-xl p-5"><h4 class="text-sm font-semibold text-sky-400 mb-3">🗝️ Skills That Open The Most Doors</h4><div class="flex flex-wrap gap-2">${d.skills_that_open_most_doors.map(s=>`<span class="badge bg-sky-900 text-sky-200 px-3 py-1.5">${x(s)}</span>`).join('')}</div></div>`;
+  }
+  if (d.one_move_this_week) {
+    html += `<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-5 flex gap-3"><span class="text-2xl flex-shrink-0">⚡</span><div><div class="text-xs font-semibold text-indigo-400 mb-1">DO THIS WEEK</div><div class="text-sm text-white font-medium">${x(d.one_move_this_week)}</div></div></div>`;
+  }
+
+  document.getElementById('paths-results').innerHTML = html;
+  document.getElementById('paths-results').classList.remove('hidden');
+  document.getElementById('paths-results').scrollIntoView({behavior:'smooth',block:'start'});
+}
 </script>
 
 <!-- ======= LINKEDIN TAB ======= -->
@@ -864,6 +997,26 @@ window.trackJob=function(idx){
     <div id="tracker-error" class="hidden mt-2 text-rose-300 text-xs"></div>
   </div>
   <div id="tracker-list" class="space-y-3"></div>
+</div>
+
+<!-- ======= CAREER PATHS TAB ======= -->
+<div id="pane-paths" class="pane hidden max-w-5xl mx-auto px-5 py-8">
+  <div class="flex items-start justify-between mb-2">
+    <div>
+      <h2 class="text-2xl font-bold text-white mb-1">🚀 Career Path Simulator</h2>
+      <p class="text-slate-400 text-sm">See where you can go from here — 3 realistic paths, with step-by-step progression, salary jumps, and skills to add.</p>
+    </div>
+  </div>
+  <div class="flex gap-2 mt-4 mb-6">
+    <button onclick="setAmbition('conservative')" id="amb-conservative" class="badge bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 text-xs hover:bg-slate-700 transition-colors">🛡️ Conservative</button>
+    <button onclick="setAmbition('balanced')"     id="amb-balanced"     class="badge bg-indigo-900 text-indigo-200 border border-indigo-700 px-4 py-2 text-xs">⚖️ Balanced</button>
+    <button onclick="setAmbition('ambitious')"    id="amb-ambitious"    class="badge bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 text-xs hover:bg-slate-700 transition-colors">🔥 Ambitious</button>
+  </div>
+  <button onclick="runCareerPaths()" id="paths-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-6">
+    <span id="paths-btn-text">🚀 Simulate My Career Paths</span>
+  </button>
+  <div id="paths-results" class="hidden space-y-6"></div>
+  <div id="paths-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
 </div>
 
 </body>
