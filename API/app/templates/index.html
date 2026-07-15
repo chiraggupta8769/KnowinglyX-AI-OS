@@ -8,222 +8,376 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { font-family: 'Inter', sans-serif; }
-    .tab-active { border-bottom: 2px solid #818cf8; color: #818cf8; }
-    .job-card { transition: all 0.2s ease; }
-    .job-card:hover { border-color: #4f46e5; transform: translateY(-1px); }
-    .job-card.saved { border-color: #059669 !important; }
-    .job-card.skipped { opacity: 0.3; }
-    .fit-high { color: #34d399; }
-    .fit-mid  { color: #fbbf24; }
-    .fit-low  { color: #f87171; }
+    pre { white-space:pre-wrap; word-wrap:break-word; }
+    .badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:500; display:inline-block; }
+    .nav-item { transition:all 0.15s; border-radius:8px; }
+    .nav-item:hover { background:#1e293b; }
+    .nav-item.active { background:#1e293b; color:#818cf8; }
+    .job-card { transition:all 0.2s; }
+    .job-card:hover { border-color:#475569; transform:translateY(-1px); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
     .chat-user { background:#4f46e5; color:#fff; border-radius:18px 18px 4px 18px; }
     .chat-ai   { background:#1e293b; color:#e2e8f0; border-radius:18px 18px 18px 4px; }
     .typing::after { content:'▋'; animation: blink 1s infinite; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
-    pre { white-space:pre-wrap; word-wrap:break-word; }
-    .progress-bar { height:4px; border-radius:2px; background:#1e293b; overflow:hidden; }
-    .progress-fill { height:100%; border-radius:2px; transition:width 1s ease; }
-    .badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:500; }
     ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:2px; }
+    .profile-banner { background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e3a5f 100%); }
+    .open-to-work { background:linear-gradient(135deg,#065f46,#047857); border:2px solid #10b981; }
+    .strength-bar { height:6px; background:#1e293b; border-radius:3px; overflow:hidden; }
+    .strength-fill { height:100%; border-radius:3px; transition:width 1.5s ease; }
+    @media (max-width: 768px) { #sidebar-left, #sidebar-right { display:none; } #main-content { margin:0; } }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
-<!-- ── Top Nav ── -->
-<nav class="border-b border-slate-800 px-5 py-3 flex items-center justify-between sticky top-0 bg-slate-950/95 backdrop-blur z-40">
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white text-sm">K</div>
-    <span class="font-bold text-white">KnowinglyX</span>
-    <span class="text-indigo-400 font-medium text-sm hidden sm:block">AI Career OS</span>
-  </div>
-  <div id="nav-resume" class="flex items-center gap-2 cursor-pointer" onclick="document.getElementById('pdf-input').click()">
-    <div id="nav-upload" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
-      <span>📄</span><span>Upload Resume</span>
-    </div>
-    <div id="nav-ready" class="hidden flex items-center gap-2">
-      <span class="text-emerald-400 text-sm">✅</span>
-      <span id="nav-filename" class="text-sm text-emerald-400 font-medium max-w-[160px] truncate"></span>
-      <button onclick="event.stopPropagation();clearResume()" class="text-slate-500 hover:text-slate-300 text-xs ml-1">Change</button>
-    </div>
-  </div>
-  <input type="file" id="pdf-input" accept=".pdf" class="hidden" onchange="handleResumeUpload(this.files[0])"/>
-</nav>
-
-<!-- ── Tab Bar ── -->
-<div class="border-b border-slate-800 px-5 overflow-x-auto bg-slate-950 sticky top-[53px] z-30">
-  <div class="flex gap-1 min-w-max">
-    <button onclick="switchTab('home')"     id="tab-home"      class="px-4 py-3 text-sm font-medium tab-active whitespace-nowrap">🏠 Home</button>
-    <button onclick="switchTab('jobs')"     id="tab-jobs"      class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💼 Jobs</button>
-    <button onclick="switchTab('analyze')"  id="tab-analyze"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">📊 Analyzer</button>
-    <button onclick="switchTab('interview')" id="tab-interview" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🎯 Interview</button>
-    <button onclick="switchTab('rewrite')"  id="tab-rewrite"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">✏️ Rewrite PDF</button>
-    <button onclick="switchTab('scanner')"  id="tab-scanner"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🔍 Job Scanner</button>
-    <button onclick="switchTab('coach')"    id="tab-coach"     class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💬 Coach</button>
-    <button onclick="switchTab('linkedin')" id="tab-linkedin"  class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🔗 LinkedIn</button>
-    <button onclick="switchTab('salary')"   id="tab-salary"    class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">💰 Salary</button>
-    <button onclick="switchTab('paths')"    id="tab-paths"    class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">🚀 Career Paths</button>
-    <button onclick="switchTab('tracker')"  id="tab-tracker"   class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 whitespace-nowrap">📋 Tracker</button>
-  </div>
-</div>
-
-<!-- ── Upload Gate ── -->
-<div id="gate" class="max-w-lg mx-auto px-6 py-24 text-center">
-  <div class="w-20 h-20 bg-indigo-600/20 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-6">📄</div>
-  <h2 class="text-2xl font-bold text-white mb-2">Start with your resume</h2>
-  <p class="text-slate-400 text-sm mb-8">Upload your PDF — KnowinglyX will analyze it and build your personal career dashboard in seconds.</p>
-  <button onclick="document.getElementById('pdf-input').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-sm">Upload Resume PDF</button>
-</div>
-
-<!-- ======= HOME / DASHBOARD ======= -->
-<div id="pane-home" class="pane hidden max-w-5xl mx-auto px-5 py-6">
-  <!-- Career Intel Bar -->
-  <div id="intel-bar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div id="i-headline" class="text-xs text-slate-400 mb-1">Your edge</div>
-      <div id="i-strength" class="text-sm font-semibold text-white leading-tight">—</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400 mb-1">Market demand</div>
-      <div id="i-demand" class="text-xl font-bold">—</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400 mb-1">Salary range</div>
-      <div id="i-salary" class="text-sm font-semibold text-emerald-400">—</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400 mb-1">Jobs found</div>
-      <div id="i-count" class="text-xl font-bold text-indigo-400">—</div>
-    </div>
-  </div>
-
-  <!-- Next Action -->
-  <div id="next-action-bar" class="hidden bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-6 flex items-center gap-3">
-    <span class="text-2xl">⚡</span>
-    <div>
-      <div class="text-xs text-indigo-300 font-medium mb-0.5">Your next move</div>
-      <div id="next-action-text" class="text-sm text-white font-medium"></div>
-    </div>
-  </div>
-
-  <!-- Biggest Gap -->
-  <div id="gap-bar" class="hidden bg-amber-950 border border-amber-800 rounded-xl p-4 mb-6 flex items-center gap-3">
-    <span class="text-2xl">🎯</span>
-    <div>
-      <div class="text-xs text-amber-300 font-medium mb-0.5">Biggest gap to close</div>
-      <div id="gap-text" class="text-sm text-white"></div>
-    </div>
-  </div>
-
-  <!-- Job Feed Header -->
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="font-bold text-white">Your Job Feed</h2>
-    <div class="flex gap-2">
-      <button onclick="filterJobs('all')" id="f-all" class="badge bg-indigo-900 text-indigo-200">All</button>
-      <button onclick="filterJobs('saved')" id="f-saved" class="badge bg-slate-800 text-slate-300">Saved</button>
-      <button onclick="filterJobs('high')" id="f-high" class="badge bg-slate-800 text-slate-300">Best fit</button>
-    </div>
-  </div>
-
-  <!-- Job cards -->
-  <div id="home-jobs" class="space-y-3"></div>
-  <div id="home-loading" class="text-center py-16 text-slate-400">
-    <div class="text-4xl mb-3 animate-pulse">🔄</div>
-    <div class="text-sm">Building your career feed...</div>
-  </div>
-</div>
-
-<!-- ======= JOBS TAB ======= -->
-<div id="pane-jobs" class="pane hidden max-w-5xl mx-auto px-5 py-6">
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h2 class="text-xl font-bold text-white">Matching Jobs</h2>
-      <p class="text-slate-400 text-xs mt-0.5">Real jobs from 4 sources, matched to your profile</p>
-    </div>
-    <button onclick="loadJobs()" id="jm-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
-      <span id="jm-btn-text">🔄 Refresh</span>
-    </button>
-  </div>
-  <div id="jobs-list" class="space-y-3"></div>
-  <div id="jobs-loading" class="hidden text-center py-16 text-slate-400">
-    <div class="text-4xl mb-3 animate-pulse">🔍</div>
-    <div class="text-sm">Searching across job boards...</div>
-  </div>
-  <div id="jm-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= ANALYZER TAB ======= -->
-<div id="pane-analyze" class="pane hidden max-w-4xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">Career Analyzer</h2>
-  <p class="text-slate-400 text-sm mb-5">Paste a job description — get ATS score, match %, skills gap, and a cover letter.</p>
-  <textarea id="analyze-job" rows="10" placeholder="Paste the full job description here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white resize-none focus:outline-none focus:border-indigo-500 mb-4 transition-colors"></textarea>
-  <button onclick="runAnalysis()" id="analyze-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
-    <span id="analyze-btn-text">⚡ Analyze My Fit</span>
-  </button>
-  <div id="analyze-results" class="mt-6 hidden space-y-4"></div>
-  <div id="analyze-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= INTERVIEW TAB ======= -->
-<div id="pane-interview" class="pane hidden max-w-4xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">Interview Prep</h2>
-  <p class="text-slate-400 text-sm mb-5">Tell us what role you're targeting — we'll generate personalized questions and coached answers from your resume. No JD needed.</p>
-  <div class="mb-4">
-    <label class="block text-xs font-semibold text-slate-400 mb-2">TARGET ROLE <span class="text-slate-500 font-normal">(or leave blank to use your top role)</span></label>
-    <input id="iv-role" type="text" placeholder="e.g. Operations Manager, City Head, Cluster Manager..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-  </div>
-  <div id="iv-role-chips" class="flex flex-wrap gap-2 mb-5"></div>
-  <button onclick="runInterviewPrep()" id="iv-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-    <span id="iv-btn-text">🎯 Generate Interview Prep</span>
-  </button>
-  <div id="iv-results" class="mt-6 hidden space-y-4"></div>
-  <div id="iv-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= REWRITE PDF TAB ======= -->
-<div id="pane-rewrite" class="pane hidden max-w-3xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">Rewrite Resume as PDF</h2>
-  <p class="text-slate-400 text-sm mb-5">Tell us the role — we tailor your resume for it and export an ATS-optimized PDF. No JD pasting required.</p>
-  <div class="mb-3">
-    <label class="block text-xs font-semibold text-slate-400 mb-2">TARGET ROLE</label>
-    <input id="rw-role" type="text" placeholder="e.g. Operations Manager, City Head, Supply Chain Lead..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-  </div>
-  <div id="rw-role-chips" class="flex flex-wrap gap-2 mb-5"></div>
-  <button onclick="runRewritePDF()" id="rw-btn" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-    <span id="rw-btn-text">📄 Rewrite & Download ATS PDF</span>
-  </button>
-  <div id="rw-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= JOB SCANNER TAB ======= -->
-<div id="pane-scanner" class="pane hidden max-w-3xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">Job Scanner</h2>
-  <p class="text-slate-400 text-sm mb-5">Paste any job URL — instant fit score, recruiter verdict, keyword gaps.</p>
-  <input id="sc-url" type="url" placeholder="https://linkedin.com/jobs/view/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 mb-4"/>
-  <button onclick="runJobScan()" id="sc-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-    <span id="sc-btn-text">🔍 Scan Job</span>
-  </button>
-  <div id="sc-results" class="mt-6 hidden"></div>
-  <div id="sc-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= COACH TAB ======= -->
-<div id="pane-coach" class="pane hidden" style="height:calc(100vh - 120px)">
-  <div class="max-w-3xl mx-auto w-full h-full px-5 py-4 flex flex-col">
-    <div class="mb-3">
-      <h2 class="text-xl font-bold text-white">AI Career Coach</h2>
-      <p class="text-slate-400 text-xs mt-0.5">Ask anything — interviews, salary, job strategy, career pivots.</p>
-    </div>
-    <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
-      <div class="flex gap-3">
-        <div class="w-8 h-8 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold">K</div>
-        <div class="chat-ai px-4 py-3 text-sm max-w-lg rounded-2xl">Hey! I'm your AI career coach. What would you like to work on today?</div>
+<!-- ── Top Nav (LinkedIn-style) ── -->
+<nav class="bg-slate-950/95 border-b border-slate-800 sticky top-0 z-50 backdrop-blur">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+    <!-- Logo + Search -->
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-black text-white text-sm">K</div>
+      <div class="hidden md:block">
+        <input id="nav-search" type="text" placeholder="Search jobs, skills, roles..." class="bg-slate-900 border border-slate-700 rounded-full px-4 py-1.5 text-sm text-white w-52 focus:outline-none focus:border-indigo-500 focus:w-72 transition-all"/>
       </div>
     </div>
-    <div class="flex gap-2 flex-shrink-0">
-      <input id="chat-input" type="text" placeholder="Ask your career coach..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat()}"/>
-      <button onclick="sendChat()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl text-sm font-semibold flex-shrink-0">Send</button>
+
+    <!-- Nav icons -->
+    <div class="flex items-center gap-1">
+      <button onclick="switchTab('home')" id="nav-home" class="nav-item active flex flex-col items-center gap-0.5 px-4 py-2 text-xs text-slate-400">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span>Home</span>
+      </button>
+      <button onclick="switchTab('jobs')" id="nav-jobs" class="nav-item flex flex-col items-center gap-0.5 px-4 py-2 text-xs text-slate-400">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.36C18 2.51 15.52 0 12.5 0S7 2.51 7 4.64c0 .48.11.92.18 1.36H5C3.89 6 3.01 6.89 3.01 8L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.11-.9-2-2-2zm-7.5-4c1.03 0 1.5.73 1.5 1.64S13.53 5.28 12.5 5.28 11 4.55 11 3.64 11.47 2 12.5 2zM20 19H4V8h16v11z"/></svg>
+        <span>Jobs</span>
+      </button>
+      <button onclick="switchTab('paths')" id="nav-paths" class="nav-item flex flex-col items-center gap-0.5 px-4 py-2 text-xs text-slate-400">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 2C8.25 2 4 6.25 4 11.5S8.25 21 13.5 21 23 16.75 23 11.5 18.75 2 13.5 2zm.5 10.86V17h-2v-4.14l-3.5-3.5L10 7.94l3.5 3.5 3.5-3.5 1.5 1.42-4.5 4.5z"/></svg>
+        <span>Paths</span>
+      </button>
+      <button onclick="switchTab('coach')" id="nav-coach" class="nav-item flex flex-col items-center gap-0.5 px-4 py-2 text-xs text-slate-400">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        <span>Coach</span>
+      </button>
     </div>
-    <div id="ws-status" class="text-xs text-slate-600 mt-1 text-center"></div>
+
+    <!-- Upload Resume / Profile indicator -->
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <div id="nav-upload-btn" onclick="document.getElementById('pdf-input').click()" class="cursor-pointer flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+        <span>📄</span><span>Upload Resume</span>
+      </div>
+      <div id="nav-profile-btn" class="hidden cursor-pointer" onclick="switchTab('profile')">
+        <div id="nav-avatar" class="w-8 h-8 bg-indigo-700 rounded-full flex items-center justify-center text-sm font-bold text-white border-2 border-indigo-500">?</div>
+      </div>
+    </div>
+    <input type="file" id="pdf-input" accept=".pdf" class="hidden" onchange="handleResumeUpload(this.files[0])"/>
+  </div>
+</nav>
+
+<!-- ── Upload Gate ── -->
+<div id="gate" class="max-w-2xl mx-auto px-6 py-20 text-center">
+  <div class="w-24 h-24 bg-indigo-600/20 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">📄</div>
+  <h2 class="text-3xl font-bold text-white mb-3">Your AI Career OS</h2>
+  <p class="text-slate-400 mb-2">Better than LinkedIn. Upload your resume once — get your profile, job feed, career paths, salary intel, and AI coach. No job descriptions to paste.</p>
+  <p class="text-slate-500 text-sm mb-8">Free forever. No sign-up required.</p>
+  <button onclick="document.getElementById('pdf-input').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-10 py-4 rounded-full transition-colors text-sm inline-flex items-center gap-2">
+    <span>📄</span> Upload Resume PDF to Get Started
+  </button>
+  <div class="mt-8 grid grid-cols-3 gap-4 text-center">
+    <div class="bg-slate-900 rounded-xl p-4"><div class="text-2xl mb-1">🎯</div><div class="text-xs text-slate-400">Instant job matching</div></div>
+    <div class="bg-slate-900 rounded-xl p-4"><div class="text-2xl mb-1">🚀</div><div class="text-xs text-slate-400">Career path simulation</div></div>
+    <div class="bg-slate-900 rounded-xl p-4"><div class="text-2xl mb-1">💰</div><div class="text-xs text-slate-400">Salary intelligence</div></div>
+  </div>
+</div>
+
+<!-- ── Main Layout (3-column LinkedIn style) ── -->
+<div id="app-layout" class="hidden max-w-6xl mx-auto px-4 py-5 flex gap-5">
+
+  <!-- LEFT SIDEBAR -->
+  <div id="sidebar-left" class="w-64 flex-shrink-0 space-y-3">
+
+    <!-- Profile Card -->
+    <div id="profile-card" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <!-- Banner -->
+      <div class="profile-banner h-14 relative">
+        <div id="open-badge" class="hidden absolute bottom-0 left-3 translate-y-1/2 open-to-work text-xs font-bold text-white px-2 py-0.5 rounded-full">#OpenToWork</div>
+      </div>
+      <!-- Avatar -->
+      <div class="px-4 pt-8 pb-4">
+        <div id="profile-avatar" class="w-16 h-16 bg-indigo-700 rounded-full border-4 border-slate-900 -mt-12 flex items-center justify-center text-2xl font-bold text-white">?</div>
+        <div id="profile-name" class="font-bold text-white mt-2 text-base">—</div>
+        <div id="profile-headline" class="text-slate-400 text-xs mt-0.5 leading-tight">—</div>
+        <div id="profile-location" class="text-slate-500 text-xs mt-1">—</div>
+      </div>
+      <div class="border-t border-slate-800 px-4 py-3">
+        <div class="flex justify-between text-xs mb-2">
+          <span class="text-slate-400">Profile strength</span>
+          <span id="strength-pct" class="text-indigo-400 font-semibold">0%</span>
+        </div>
+        <div class="strength-bar"><div id="strength-fill" class="strength-fill bg-indigo-500" style="width:0%"></div></div>
+      </div>
+      <div class="border-t border-slate-800 px-4 py-3">
+        <button onclick="switchTab('profile')" class="w-full text-xs text-indigo-400 hover:text-indigo-300 font-medium">View full profile →</button>
+      </div>
+    </div>
+
+    <!-- Left Nav -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-1">
+      <div class="text-xs font-semibold text-slate-500 px-2 py-1">TOOLS</div>
+      <button onclick="switchTab('interview')" class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">🎯 <span>Interview Prep</span></button>
+      <button onclick="switchTab('rewrite')"   class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">✏️ <span>Rewrite Resume</span></button>
+      <button onclick="switchTab('scanner')"   class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">🔍 <span>Job Scanner</span></button>
+      <button onclick="switchTab('linkedin')"  class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">🔗 <span>LinkedIn Outreach</span></button>
+      <button onclick="switchTab('salary')"    class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">💰 <span>Salary Intel</span></button>
+      <button onclick="switchTab('tracker')"   class="nav-item w-full text-left flex items-center gap-2 px-2 py-2 text-sm text-slate-300">📋 <span>Applications</span></button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main-content" class="flex-1 min-w-0 space-y-4">
+
+    <!-- ======= HOME FEED ======= -->
+    <div id="pane-home" class="pane space-y-4">
+      <!-- Career Intel strip -->
+      <div id="intel-strip" class="bg-slate-900 border border-slate-800 rounded-xl p-4 hidden">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div><div class="text-xs text-slate-500">Market demand</div><div id="i-demand" class="font-bold text-lg">—</div></div>
+          <div><div class="text-xs text-slate-500">Salary range</div><div id="i-salary" class="text-sm font-semibold text-emerald-400">—</div></div>
+          <div><div class="text-xs text-slate-500">Jobs found</div><div id="i-count" class="font-bold text-lg text-indigo-400">—</div></div>
+          <div><div class="text-xs text-slate-500">Your edge</div><div id="i-strength-text" class="text-sm font-semibold text-white leading-tight">—</div></div>
+        </div>
+        <div id="next-action-strip" class="hidden mt-3 pt-3 border-t border-slate-800 flex items-center gap-2">
+          <span class="text-indigo-400">⚡</span><span id="next-action-text" class="text-sm text-white"></span>
+        </div>
+      </div>
+
+      <!-- Feed filter -->
+      <div class="flex items-center justify-between">
+        <div class="flex gap-2">
+          <button onclick="filterJobs('all')"   id="f-all"   class="badge bg-indigo-900 text-indigo-200 px-3 py-1.5 cursor-pointer hover:bg-indigo-800">All Jobs</button>
+          <button onclick="filterJobs('saved')" id="f-saved" class="badge bg-slate-800 text-slate-400 px-3 py-1.5 cursor-pointer hover:bg-slate-700">Saved</button>
+          <button onclick="filterJobs('high')"  id="f-high"  class="badge bg-slate-800 text-slate-400 px-3 py-1.5 cursor-pointer hover:bg-slate-700">Best Match</button>
+        </div>
+        <button onclick="loadDashboard()" class="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1">🔄 Refresh</button>
+      </div>
+
+      <div id="home-loading" class="text-center py-16 text-slate-500 text-sm">
+        <div class="text-3xl mb-3 animate-pulse">🔄</div>Building your feed...
+      </div>
+      <div id="home-jobs" class="space-y-3"></div>
+    </div>
+
+    <!-- ======= JOBS TAB ======= -->
+    <div id="pane-jobs" class="pane hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-white text-lg">Matching Jobs</h2>
+        <button onclick="loadJobs()" id="jm-btn" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full font-semibold"><span id="jm-btn-text">🔄 Refresh</span></button>
+      </div>
+      <div id="jobs-loading" class="hidden text-center py-12 text-slate-500 text-sm"><div class="animate-pulse text-3xl mb-3">🔍</div>Searching...</div>
+      <div id="jobs-list" class="space-y-3"></div>
+      <div id="jm-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= PROFILE TAB ======= -->
+    <div id="pane-profile" class="pane hidden space-y-4">
+      <!-- Profile Header -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="profile-banner h-24"></div>
+        <div class="px-6 pb-6">
+          <div id="full-avatar" class="w-24 h-24 bg-indigo-700 rounded-full border-4 border-slate-900 -mt-12 flex items-center justify-center text-4xl font-bold text-white">?</div>
+          <div class="mt-3 flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h1 id="full-name" class="text-2xl font-bold text-white">—</h1>
+              <p id="full-headline" class="text-slate-400 mt-1">—</p>
+              <p id="full-location" class="text-slate-500 text-sm mt-1">—</p>
+            </div>
+            <div id="otw-toggle-wrap" class="hidden">
+              <button onclick="toggleOpenToWork()" id="otw-btn" class="text-xs border border-emerald-600 text-emerald-400 hover:bg-emerald-950 px-4 py-2 rounded-full font-semibold transition-colors">#Open to Work</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Skills -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h3 class="font-semibold text-white mb-3">Skills</h3>
+        <div id="full-skills" class="flex flex-wrap gap-2"></div>
+      </div>
+      <!-- Experience -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h3 class="font-semibold text-white mb-3">Experience</h3>
+        <div id="full-experience" class="space-y-3"></div>
+      </div>
+      <!-- Strengths -->
+      <div id="strengths-section" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h3 class="font-semibold text-white mb-3">Strengths</h3>
+        <div id="full-strengths" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+
+    <!-- ======= CAREER PATHS TAB ======= -->
+    <div id="pane-paths" class="pane hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-4">
+        <h2 class="font-bold text-white text-lg mb-1">🚀 Career Path Simulator</h2>
+        <p class="text-slate-400 text-sm mb-4">See where you can go from here. LinkedIn doesn't show you this.</p>
+        <div class="flex gap-2 mb-4">
+          <button onclick="setAmbition('conservative')" id="amb-conservative" class="badge bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 cursor-pointer text-xs">🛡️ Conservative</button>
+          <button onclick="setAmbition('balanced')"     id="amb-balanced"     class="badge bg-indigo-900 text-indigo-200 border border-indigo-700 px-3 py-1.5 cursor-pointer text-xs">⚖️ Balanced</button>
+          <button onclick="setAmbition('ambitious')"    id="amb-ambitious"    class="badge bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 cursor-pointer text-xs">🔥 Ambitious</button>
+        </div>
+        <button onclick="runCareerPaths()" id="paths-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+          <span id="paths-btn-text">Simulate My Paths →</span>
+        </button>
+      </div>
+      <div id="paths-results" class="hidden space-y-5"></div>
+      <div id="paths-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= COACH TAB ======= -->
+    <div id="pane-coach" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl" style="height:calc(100vh - 160px)">
+      <div class="h-full flex flex-col p-4">
+        <div class="mb-3 pb-3 border-b border-slate-800">
+          <h2 class="font-bold text-white">AI Career Coach</h2>
+          <p class="text-slate-500 text-xs">Personalized advice based on your resume</p>
+        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-3 pr-1">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold">K</div>
+            <div class="chat-ai px-4 py-3 text-sm max-w-lg rounded-2xl">Hey! I'm your AI career coach. What do you want to work on today?</div>
+          </div>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <input id="chat-input" type="text" placeholder="Ask your coach..." class="flex-1 bg-slate-800 border border-slate-700 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat()}"/>
+          <button onclick="sendChat()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold">Send</button>
+        </div>
+        <div id="ws-status" class="text-xs text-slate-600 mt-1 text-center"></div>
+      </div>
+    </div>
+
+    <!-- ======= INTERVIEW TAB ======= -->
+    <div id="pane-interview" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="font-bold text-white text-lg mb-1">Interview Prep</h2>
+      <p class="text-slate-400 text-sm mb-4">AI-generated questions + coached answers. No JD needed.</p>
+      <div class="mb-3">
+        <label class="text-xs text-slate-400 font-semibold block mb-2">TARGET ROLE</label>
+        <input id="iv-role" type="text" placeholder="e.g. Operations Manager, City Head..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      </div>
+      <div id="iv-role-chips" class="flex flex-wrap gap-2 mb-4"></div>
+      <button onclick="runInterviewPrep()" id="iv-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+        <span id="iv-btn-text">Generate Interview Prep →</span>
+      </button>
+      <div id="iv-results" class="mt-5 hidden space-y-4"></div>
+      <div id="iv-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= REWRITE TAB ======= -->
+    <div id="pane-rewrite" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="font-bold text-white text-lg mb-1">Rewrite Resume as PDF</h2>
+      <p class="text-slate-400 text-sm mb-4">Tailored to your target role. ATS-optimized. Download instantly.</p>
+      <div class="mb-3">
+        <label class="text-xs text-slate-400 font-semibold block mb-2">TARGET ROLE</label>
+        <input id="rw-role" type="text" placeholder="e.g. Operations Manager, City Head..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      </div>
+      <div id="rw-role-chips" class="flex flex-wrap gap-2 mb-4"></div>
+      <button onclick="runRewritePDF()" id="rw-btn" class="bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+        <span id="rw-btn-text">📄 Rewrite & Download PDF →</span>
+      </button>
+      <div id="rw-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= SCANNER TAB ======= -->
+    <div id="pane-scanner" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="font-bold text-white text-lg mb-1">Job Scanner</h2>
+      <p class="text-slate-400 text-sm mb-4">Paste any job URL — instant fit score + recruiter verdict.</p>
+      <input id="sc-url" type="url" placeholder="https://linkedin.com/jobs/view/..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 mb-3"/>
+      <button onclick="runJobScan()" id="sc-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+        <span id="sc-btn-text">Scan Job →</span>
+      </button>
+      <div id="sc-results" class="mt-5 hidden"></div>
+      <div id="sc-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= LINKEDIN TAB ======= -->
+    <div id="pane-linkedin" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="font-bold text-white text-lg mb-1">LinkedIn Outreach</h2>
+      <p class="text-slate-400 text-sm mb-4">3 personalized message variants. Ready to copy and send.</p>
+      <div class="grid md:grid-cols-2 gap-3 mb-3">
+        <input id="li-name"    type="text" placeholder="Recruiter name (optional)" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+        <input id="li-company" type="text" placeholder="Company (optional)"        class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+        <input id="li-role"    type="text" placeholder="Target role"               class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+        <select id="li-context" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <option value="cold_outreach">Cold Outreach</option>
+          <option value="referral_ask">Referral Request</option>
+          <option value="follow_up">Follow-up</option>
+        </select>
+      </div>
+      <button onclick="runLinkedIn()" id="li-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+        <span id="li-btn-text">Generate Messages →</span>
+      </button>
+      <div id="li-results" class="mt-5 hidden space-y-3"></div>
+      <div id="li-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= SALARY TAB ======= -->
+    <div id="pane-salary" class="pane hidden bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="font-bold text-white text-lg mb-1">Salary Intelligence</h2>
+      <p class="text-slate-400 text-sm mb-4">Know your floor, target, and ceiling before negotiations.</p>
+      <div class="grid md:grid-cols-2 gap-3 mb-3">
+        <input id="sal-role"     type="text" placeholder="Target role (optional)"   class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+        <input id="sal-location" type="text" placeholder="Location (e.g. Jaipur)"   class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+      </div>
+      <button onclick="runSalaryIntel()" id="sal-btn" class="bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors">
+        <span id="sal-btn-text">Analyze My Market Value →</span>
+      </button>
+      <div id="sal-results" class="mt-5 hidden space-y-3"></div>
+      <div id="sal-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
+    </div>
+
+    <!-- ======= TRACKER TAB ======= -->
+    <div id="pane-tracker" class="pane hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-4">
+        <h2 class="font-bold text-white text-lg mb-1">Applications</h2>
+        <div id="tracker-stats" class="mb-4"></div>
+        <h3 class="text-sm font-semibold text-slate-300 mb-3">+ Add Application</h3>
+        <div class="grid md:grid-cols-2 gap-3 mb-3">
+          <input id="app-title"   type="text" placeholder="Job title *"       class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+          <input id="app-company" type="text" placeholder="Company *"         class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+          <input id="app-url"     type="url"  placeholder="Job URL (optional)" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+          <input id="app-notes"   type="text" placeholder="Notes (optional)"   class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
+        </div>
+        <button onclick="addApplication()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2 rounded-full transition-colors">Add</button>
+        <div id="tracker-error" class="hidden mt-2 text-rose-300 text-xs"></div>
+      </div>
+      <div id="tracker-list" class="space-y-3"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div id="sidebar-right" class="w-64 flex-shrink-0 space-y-3">
+
+    <!-- AI Insights -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs font-semibold text-slate-400 mb-3">YOUR CAREER INTEL</div>
+      <div id="right-gap" class="hidden mb-3 p-3 bg-amber-950/50 border border-amber-800/50 rounded-lg">
+        <div class="text-xs text-amber-400 font-semibold mb-1">⚡ Biggest gap</div>
+        <div id="right-gap-text" class="text-xs text-slate-300"></div>
+      </div>
+      <div class="space-y-2">
+        <button onclick="switchTab('paths')"   class="w-full text-left text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 transition-colors">🚀 Simulate career paths</button>
+        <button onclick="switchTab('salary')"  class="w-full text-left text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 transition-colors">💰 Check salary range</button>
+        <button onclick="switchTab('linkedin')" class="w-full text-left text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-2 transition-colors">🔗 Write recruiter message</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs font-semibold text-slate-400 mb-3">ACTIVITY</div>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-400">Saved jobs</span><span id="stat-saved" class="text-white font-semibold">0</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Applications</span><span id="stat-apps" class="text-white font-semibold">0</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Interviews</span><span id="stat-interviews" class="text-white font-semibold">0</span></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -232,7 +386,7 @@
   <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto">
     <div class="flex items-center justify-between p-5 border-b border-slate-800 sticky top-0 bg-slate-900 rounded-t-2xl">
       <h3 class="font-bold text-white" id="kit-title">Apply Kit</h3>
-      <button onclick="closeKit()" class="text-slate-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800">&times;</button>
+      <button onclick="closeKit()" class="text-slate-400 hover:text-white text-xl">&times;</button>
     </div>
     <div id="kit-content" class="p-5"></div>
   </div>
@@ -240,389 +394,519 @@
 
 <script>
 // ── State ──────────────────────────────────────────────────
-let _resumeText = '';
-let _resumeSkills = [];
-let _resumeRoles = [];
-let _jobs = [];
-let _savedJobs = JSON.parse(localStorage.getItem('kx_saved') || '[]');
-let _skippedJobs = JSON.parse(localStorage.getItem('kx_skipped') || '[]');
-let _currentTab = 'home';
+let _resumeText='', _resumeSkills=[], _resumeRoles=[], _resumeAnalysis={};
+let _jobs=[], _currentTab='home';
+let _savedJobs  = JSON.parse(localStorage.getItem('kx_saved')||'[]');
+let _skippedJobs= JSON.parse(localStorage.getItem('kx_skipped')||'[]');
+let _openToWork = localStorage.getItem('kx_otw')==='true';
+let _applications= JSON.parse(localStorage.getItem('kx_apps')||'[]');
+const APP_STATUSES=['Applied','Phone Screen','Interview','Offer','Rejected','Ghosted'];
+const STATUS_COLORS={Applied:'bg-indigo-900 text-indigo-200','Phone Screen':'bg-sky-900 text-sky-200',Interview:'bg-amber-900 text-amber-200',Offer:'bg-emerald-900 text-emerald-200',Rejected:'bg-rose-900 text-rose-200',Ghosted:'bg-slate-700 text-slate-400'};
 
 // ── Resume Upload ──────────────────────────────────────────
 async function handleResumeUpload(file) {
   if (!file) return;
-  document.getElementById('nav-upload').innerHTML = '<span class="animate-spin">⏳</span><span>Reading...</span>';
+  document.getElementById('nav-upload-btn').innerHTML = '⏳ Reading...';
   try {
-    const fd = new FormData(); fd.append('file', file);
-    const res = await fetch('/resume/analyze', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Could not read PDF');
-    const a = data.analysis;
-    _resumeSkills = a.skills || [];
-    _resumeRoles = a.recommended_roles || [];
-    _resumeText = buildResumeText(a);
-    document.getElementById('nav-upload').classList.add('hidden');
-    document.getElementById('nav-ready').classList.remove('hidden');
-    document.getElementById('nav-filename').textContent = file.name;
+    const fd=new FormData(); fd.append('file',file);
+    const res=await fetch('/resume/analyze',{method:'POST',body:fd});
+    const data=await res.json();
+    if (!data.success) throw new Error(data.error||'Could not read PDF');
+    const a=data.analysis;
+    _resumeAnalysis=a;
+    _resumeSkills=a.skills||[];
+    _resumeRoles=a.recommended_roles||[];
+    _resumeText=buildResumeText(a);
+    buildProfile(a);
+    populateRoleChips();
     document.getElementById('gate').classList.add('hidden');
+    document.getElementById('app-layout').classList.remove('hidden');
+    document.getElementById('nav-upload-btn').classList.add('hidden');
+    document.getElementById('nav-profile-btn').classList.remove('hidden');
     switchTab('home');
     loadDashboard();
-    populateRoleChips();
   } catch(e) {
-    document.getElementById('nav-upload').innerHTML = '📄 Upload Resume';
-    alert('Could not read PDF: ' + e.message);
+    document.getElementById('nav-upload-btn').innerHTML = '📄 Upload Resume';
+    alert('Error: '+e.message);
   }
 }
 
 function clearResume() {
-  _resumeText = ''; _resumeSkills = []; _resumeRoles = [];
-  document.getElementById('nav-upload').classList.remove('hidden');
-  document.getElementById('nav-ready').classList.add('hidden');
+  _resumeText=''; _resumeSkills=[]; _resumeRoles=[]; _resumeAnalysis={};
   document.getElementById('gate').classList.remove('hidden');
-  document.querySelectorAll('.pane').forEach(p => p.classList.add('hidden'));
-  document.getElementById('pdf-input').value = '';
+  document.getElementById('app-layout').classList.add('hidden');
+  document.getElementById('nav-upload-btn').classList.remove('hidden');
+  document.getElementById('nav-profile-btn').classList.add('hidden');
+  document.getElementById('pdf-input').value='';
 }
 
 function buildResumeText(a) {
-  const lines = [];
-  const c = a.candidate || {};
-  if (c.name) lines.push(c.name);
-  if (c.email || c.phone) lines.push([c.email, c.phone].filter(Boolean).join(' | '));
-  if (a.summary) lines.push('', 'SUMMARY', a.summary);
-  if (a.skills?.length) lines.push('', 'SKILLS', a.skills.join(', '));
-  if (a.companies?.length) lines.push('', 'EXPERIENCE', ...a.companies.map(co => '• ' + co));
-  if (a.strengths?.length) lines.push('', 'STRENGTHS', ...a.strengths.map(s => '• ' + s));
-  if (a.recommended_roles?.length) lines.push('', 'TARGET ROLES', a.recommended_roles.join(', '));
-  lines.push('', 'EXPERIENCE YEARS', String(a.experience_years || 0));
+  const lines=[];
+  const c=a.candidate||{};
+  if(c.name) lines.push(c.name);
+  if(c.email||c.phone) lines.push([c.email,c.phone].filter(Boolean).join(' | '));
+  if(a.summary) lines.push('','SUMMARY',a.summary);
+  if(a.skills?.length) lines.push('','SKILLS',a.skills.join(', '));
+  if(a.companies?.length) lines.push('','EXPERIENCE',...a.companies.map(co=>'• '+co));
+  if(a.strengths?.length) lines.push('','STRENGTHS',...a.strengths.map(s=>'• '+s));
+  if(a.recommended_roles?.length) lines.push('','TARGET ROLES',a.recommended_roles.join(', '));
+  lines.push('','EXPERIENCE YEARS',String(a.experience_years||0));
   return lines.join('\n');
 }
 
+function buildProfile(a) {
+  const c=a.candidate||{};
+  const initials=(c.name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const headline=`${a.recommended_roles?.[0]||''} · ${a.experience_years||0} years exp`;
+  // Sidebar
+  document.getElementById('profile-avatar').textContent=initials;
+  document.getElementById('profile-name').textContent=c.name||'Your Name';
+  document.getElementById('profile-headline').textContent=headline;
+  document.getElementById('profile-location').textContent=c.email||'';
+  // Nav avatar
+  document.getElementById('nav-avatar').textContent=initials.charAt(0);
+  // Full profile
+  document.getElementById('full-avatar').textContent=initials;
+  document.getElementById('full-name').textContent=c.name||'Your Name';
+  document.getElementById('full-headline').textContent=headline;
+  document.getElementById('full-location').textContent=c.email||'';
+  // Skills
+  document.getElementById('full-skills').innerHTML=(a.skills||[]).map(s=>`<span class="badge bg-slate-800 text-slate-300 text-xs px-3 py-1.5">${x(s)}</span>`).join('');
+  // Experience
+  document.getElementById('full-experience').innerHTML=(a.companies||[]).map(co=>`<div class="flex gap-3"><div class="w-10 h-10 bg-slate-800 rounded-lg flex-shrink-0 flex items-center justify-center text-lg">🏢</div><div><div class="text-sm font-semibold text-white">${x(co)}</div></div></div>`).join('');
+  // Strengths
+  if(a.strengths?.length){document.getElementById('strengths-section').classList.remove('hidden');document.getElementById('full-strengths').innerHTML=a.strengths.map(s=>`<span class="badge bg-indigo-900 text-indigo-200 px-3 py-1.5">${x(s)}</span>`).join('');}
+  // Strength % (basic calc)
+  const pct=Math.min(100,40+(a.skills?.length||0)*3+(a.companies?.length||0)*5+(a.summary?10:0));
+  document.getElementById('strength-pct').textContent=pct+'%';
+  document.getElementById('strength-fill').style.width=pct+'%';
+  // Open to work
+  document.getElementById('otw-toggle-wrap').classList.remove('hidden');
+  if(_openToWork){document.getElementById('open-badge').classList.remove('hidden');}
+  // Stats
+  updateStats();
+}
+
+function toggleOpenToWork() {
+  _openToWork=!_openToWork;
+  localStorage.setItem('kx_otw',String(_openToWork));
+  const badge=document.getElementById('open-badge');
+  const btn=document.getElementById('otw-btn');
+  if(_openToWork){badge.classList.remove('hidden');btn.className='text-xs border border-rose-600 text-rose-400 hover:bg-rose-950 px-4 py-2 rounded-full font-semibold transition-colors';btn.textContent='Remove #OpenToWork';}
+  else{badge.classList.add('hidden');btn.className='text-xs border border-emerald-600 text-emerald-400 hover:bg-emerald-950 px-4 py-2 rounded-full font-semibold transition-colors';btn.textContent='#Open to Work';}
+}
+
+function updateStats() {
+  document.getElementById('stat-saved').textContent=_savedJobs.length;
+  document.getElementById('stat-apps').textContent=_applications.length;
+  document.getElementById('stat-interviews').textContent=_applications.filter(a=>a.status==='Interview').length;
+}
+
 function requireResume(errId) {
-  if (_resumeText) return true;
-  const el = document.getElementById(errId);
-  if (el) { el.textContent = '⚠️ Upload your resume first (top right).'; el.classList.remove('hidden'); }
+  if(_resumeText) return true;
+  const el=document.getElementById(errId);
+  if(el){el.textContent='⚠️ Upload your resume first.';el.classList.remove('hidden');}
   return false;
+}
+
+// ── Nav & Tab Switching ────────────────────────────────────
+const NAV_TABS=['home','jobs','paths','coach'];
+const ALL_TABS=['home','jobs','profile','paths','interview','rewrite','scanner','linkedin','salary','tracker','coach'];
+
+function switchTab(tab) {
+  if(!_resumeText&&tab!=='home'){return;}
+  _currentTab=tab;
+  document.querySelectorAll('.pane').forEach(p=>p.classList.add('hidden'));
+  const pane=document.getElementById('pane-'+tab);
+  if(pane) pane.classList.remove('hidden');
+  // Top nav active
+  NAV_TABS.forEach(t=>{
+    const el=document.getElementById('nav-'+t);
+    if(el) el.className='nav-item flex flex-col items-center gap-0.5 px-4 py-2 text-xs '+(t===tab?'active text-indigo-400':'text-slate-400');
+  });
+  // Sidebar nav active state
+  document.querySelectorAll('#sidebar-left .nav-item').forEach(b=>b.classList.remove('active'));
+  if(tab==='coach'&&_resumeText&&!window._wsReady) initWebSocket();
+  if(tab==='jobs'&&_jobs.length===0) loadJobs();
+  if(tab==='tracker') setTimeout(renderTracker,50);
 }
 
 // ── Dashboard ──────────────────────────────────────────────
 async function loadDashboard() {
   document.getElementById('home-loading').classList.remove('hidden');
-  document.getElementById('home-jobs').innerHTML = '';
+  document.getElementById('home-jobs').innerHTML='';
   try {
-    const res = await fetch('/dashboard/feed', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ resume_text: _resumeText, skills: _resumeSkills, roles: _resumeRoles })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error('Dashboard load failed');
-    _jobs = data.jobs || [];
-    renderIntelBar(data.insight || {}, data.total_jobs || 0);
+    const res=await fetch('/dashboard/feed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,skills:_resumeSkills,roles:_resumeRoles})});
+    const data=await res.json();
+    if(!data.success) throw new Error('Feed load failed');
+    _jobs=data.jobs||[];
+    renderIntelStrip(data.insight||{},data.total_jobs||0);
     renderJobFeed(_jobs);
-  } catch(e) {
-    document.getElementById('home-jobs').innerHTML = `<p class="text-slate-400 text-sm text-center py-8">Could not load feed: ${e.message}</p>`;
-  } finally {
-    document.getElementById('home-loading').classList.add('hidden');
-  }
+  } catch(e){document.getElementById('home-jobs').innerHTML=`<div class="text-center py-8 text-slate-500 text-sm">${e.message}</div>`;}
+  finally{document.getElementById('home-loading').classList.add('hidden');}
 }
 
-function renderIntelBar(insight, total) {
-  document.getElementById('i-strength').textContent = insight.top_strength || '—';
-  const demand = insight.market_demand || '';
-  const demandEl = document.getElementById('i-demand');
-  demandEl.textContent = demand ? demand.charAt(0).toUpperCase() + demand.slice(1) : '—';
-  demandEl.className = 'text-xl font-bold ' + (demand === 'high' ? 'text-emerald-400' : demand === 'medium' ? 'text-amber-400' : 'text-rose-400');
-  document.getElementById('i-salary').textContent = insight.salary_range || '—';
-  document.getElementById('i-count').textContent = total || '—';
-  if (insight.next_action) {
-    document.getElementById('next-action-text').textContent = insight.next_action;
-    document.getElementById('next-action-bar').classList.remove('hidden');
-  }
-  if (insight.biggest_gap) {
-    document.getElementById('gap-text').textContent = insight.biggest_gap;
-    document.getElementById('gap-bar').classList.remove('hidden');
-  }
+function renderIntelStrip(ins,total) {
+  if(!ins||!ins.market_demand) return;
+  const strip=document.getElementById('intel-strip');
+  strip.classList.remove('hidden');
+  const dc=ins.market_demand==='high'?'text-emerald-400':ins.market_demand==='medium'?'text-amber-400':'text-rose-400';
+  document.getElementById('i-demand').className='font-bold text-lg '+dc;
+  document.getElementById('i-demand').textContent=(ins.market_demand||'').toUpperCase();
+  document.getElementById('i-salary').textContent=ins.salary_range||'—';
+  document.getElementById('i-count').textContent=total||'—';
+  document.getElementById('i-strength-text').textContent=ins.top_strength||'—';
+  if(ins.next_action){document.getElementById('next-action-text').textContent=ins.next_action;document.getElementById('next-action-strip').classList.remove('hidden');}
+  if(ins.biggest_gap){document.getElementById('right-gap-text').textContent=ins.biggest_gap;document.getElementById('right-gap').classList.remove('hidden');}
 }
 
-function fitClass(score) { return score >= 75 ? 'fit-high' : score >= 55 ? 'fit-mid' : 'fit-low'; }
-function fitLabel(score) { return score >= 75 ? 'Great fit' : score >= 55 ? 'Good fit' : 'Partial fit'; }
-function ghostBadge(ghost) {
-  if (!ghost) return '';
-  const colors = { green:'bg-emerald-900 text-emerald-300', yellow:'bg-amber-900 text-amber-300', red:'bg-rose-900 text-rose-300', gray:'bg-slate-800 text-slate-400' };
-  const icons  = { green:'🟢', yellow:'🟡', red:'🔴', gray:'⚪' };
-  const c = colors[ghost.color] || colors.gray;
-  const i = icons[ghost.color] || '⚪';
-  return `<span class="badge ${c}" title="${x(ghost.reason||'')}">${i} ${x(ghost.label||'')}</span>`;
-}
+// ── Job Card ───────────────────────────────────────────────
+function fitColor(s){return s>=75?'bg-emerald-900 text-emerald-300':s>=55?'bg-amber-900 text-amber-300':'bg-slate-800 text-slate-400';}
+function fitLabel(s){return s>=75?'Great match':s>=55?'Good match':'Partial match';}
+function ghostBadge(g){if(!g)return'';const c={green:'bg-emerald-900 text-emerald-300',yellow:'bg-amber-900 text-amber-300',red:'bg-rose-900 text-rose-300',gray:'bg-slate-800 text-slate-400'};const i={green:'🟢',yellow:'🟡',red:'🔴',gray:'⚪'};return`<span class="badge ${c[g.color]||c.gray}" title="${x(g.reason||'')}">${i[g.color]||'⚪'} ${x(g.label||'')}</span>`;}
 
-function jobCardHTML(j, idx, container) {
-  const saved = _savedJobs.includes(j.id);
-  const skipped = _skippedJobs.includes(j.id);
-  const fc = fitClass(j.fit_score || 0);
-  return `<div id="jcard-${container}-${idx}" class="job-card bg-slate-900 border border-slate-800 rounded-xl p-4 ${saved?'saved':''} ${skipped?'skipped':''}">
-    <div class="flex items-start justify-between gap-3">
+function jobCardHTML(j,idx,container) {
+  const saved=_savedJobs.includes(j.id);
+  return `<div id="jcard-${container}-${idx}" class="job-card bg-slate-900 border ${saved?'border-emerald-800':'border-slate-800'} rounded-xl p-4">
+    <div class="flex gap-3">
+      <div class="w-12 h-12 bg-slate-800 rounded-lg flex-shrink-0 flex items-center justify-center text-xl font-bold text-slate-400">${(j.company||'?').charAt(0).toUpperCase()}</div>
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap mb-1">
-          <span class="font-semibold text-white text-sm leading-tight">${x(j.title)}</span>
-          <span class="badge ${fc === 'fit-high' ? 'bg-emerald-900 text-emerald-300' : fc === 'fit-mid' ? 'bg-amber-900 text-amber-300' : 'bg-slate-800 text-slate-300'}">${j.fit_score || 0}% · ${fitLabel(j.fit_score||0)}</span>
-          ${ghostBadge(j.ghost)}
-          ${saved ? '<span class="badge bg-emerald-900 text-emerald-300">★ Saved</span>' : ''}
-        </div>
-        <div class="text-slate-400 text-xs">${x(j.company)} · ${x(j.location)}</div>
-        ${j.tags?.length ? `<div class="flex flex-wrap gap-1 mt-2">${j.tags.slice(0,4).map(t=>`<span class="badge bg-slate-800 text-slate-300">${x(t)}</span>`).join('')}</div>` : ''}
-        ${j.salary ? `<div class="text-emerald-400 text-xs mt-1.5">💰 ${x(j.salary)}</div>` : ''}
-        <div class="text-xs text-slate-600 mt-1">via ${x(j.source)}</div>
+        <div class="font-semibold text-white text-sm leading-tight mb-0.5">${x(j.title)}</div>
+        <div class="text-slate-400 text-xs">${x(j.company)}</div>
+        <div class="text-slate-500 text-xs">${x(j.location)} · via ${x(j.source)}</div>
+        ${j.salary?`<div class="text-emerald-400 text-xs mt-1">💰 ${x(j.salary)}</div>`:''}
       </div>
     </div>
-    <div class="flex gap-2 mt-3 flex-wrap">
-      <a href="${x(j.url)}" target="_blank" rel="noopener" class="badge bg-indigo-900 text-indigo-200 hover:bg-indigo-800 cursor-pointer px-3 py-1.5">View Job ↗</a>
-      <button onclick="toggleSave(${idx},'${container}')" class="badge ${saved?'bg-emerald-900 text-emerald-200':'bg-slate-800 text-slate-300 hover:bg-slate-700'} px-3 py-1.5">${saved ? '★ Saved' : '☆ Save'}</button>
-      <button onclick="openApplyKit(${idx})" class="badge bg-violet-900 text-violet-200 hover:bg-violet-800 px-3 py-1.5">⚡ Apply Kit</button>
-      <button onclick="tailorJob(${idx})" class="badge bg-teal-900 text-teal-200 hover:bg-teal-800 px-3 py-1.5">✏️ Tailor Resume</button>
-      ${!skipped ? `<button onclick="skipJob(${idx},'${container}')" class="badge bg-slate-800 text-slate-500 hover:text-slate-300 px-3 py-1.5">✕ Skip</button>` : ''}
+    <div class="flex flex-wrap gap-1.5 mt-3">
+      <span class="badge ${fitColor(j.fit_score||0)}">${j.fit_score||0}% · ${fitLabel(j.fit_score||0)}</span>
+      ${ghostBadge(j.ghost)}
+      ${saved?'<span class="badge bg-emerald-900 text-emerald-300">★ Saved</span>':''}
+    </div>
+    ${j.tags?.length?`<div class="flex flex-wrap gap-1 mt-2">${j.tags.slice(0,4).map(t=>`<span class="badge bg-slate-800 text-slate-400 text-xs">${x(t)}</span>`).join('')}</div>`:''}
+    <div class="flex gap-2 mt-3 pt-3 border-t border-slate-800">
+      <a href="${x(j.url)}" target="_blank" rel="noopener" class="flex-1 text-center text-xs bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-full font-semibold transition-colors">Apply →</a>
+      <button onclick="toggleSave(${idx},'${container}')" class="text-xs px-3 py-2 rounded-full font-semibold border transition-colors ${saved?'border-emerald-600 text-emerald-400':'border-slate-600 text-slate-400 hover:border-slate-400'}">${saved?'★ Saved':'☆ Save'}</button>
+      <button onclick="openApplyKit(${idx})" class="text-xs px-3 py-2 rounded-full border border-violet-600 text-violet-400 hover:bg-violet-950 font-semibold transition-colors">Apply Kit</button>
     </div>
   </div>`;
 }
 
-function renderJobFeed(jobs, filter = 'all') {
-  const el = document.getElementById('home-jobs');
-  let filtered = jobs;
-  if (filter === 'saved') filtered = jobs.filter(j => _savedJobs.includes(j.id));
-  if (filter === 'high') filtered = jobs.filter(j => (j.fit_score||0) >= 70);
-  filtered = filtered.filter(j => !_skippedJobs.includes(j.id) || filter === 'all');
-  if (!filtered.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">No jobs in this filter. Try "All".</p>'; return; }
-  el.innerHTML = filtered.map((j, i) => jobCardHTML(j, jobs.indexOf(j), 'home')).join('');
+function renderJobFeed(jobs,filter='all') {
+  const el=document.getElementById('home-jobs');
+  let filtered=jobs;
+  if(filter==='saved') filtered=jobs.filter(j=>_savedJobs.includes(j.id));
+  if(filter==='high') filtered=jobs.filter(j=>(j.fit_score||0)>=70);
+  filtered=filtered.filter(j=>!_skippedJobs.includes(j.id)||filter==='all');
+  el.innerHTML=filtered.length?filtered.map((j,i)=>jobCardHTML(j,jobs.indexOf(j),'home')).join(''):'<div class="text-center py-8 text-slate-500 text-sm">No jobs in this filter.</div>';
 }
 
 function filterJobs(type) {
-  ['all','saved','high'].forEach(t => {
-    const btn = document.getElementById('f-'+t);
-    if (btn) btn.className = 'badge ' + (t===type ? 'bg-indigo-900 text-indigo-200' : 'bg-slate-800 text-slate-300');
+  ['all','saved','high'].forEach(t=>{
+    const b=document.getElementById('f-'+t);
+    if(b) b.className='badge px-3 py-1.5 cursor-pointer '+(t===type?'bg-indigo-900 text-indigo-200':'bg-slate-800 text-slate-400 hover:bg-slate-700');
   });
-  renderJobFeed(_jobs, type);
+  renderJobFeed(_jobs,type);
 }
 
-// ── Jobs Tab ───────────────────────────────────────────────
 async function loadJobs() {
-  if (!requireResume('jm-error')) return;
+  if(!requireResume('jm-error')) return;
   clearErr('jm-error');
-  const btn = document.getElementById('jm-btn'), btnText = document.getElementById('jm-btn-text');
-  btn.disabled = true; btnText.textContent = '⏳ Searching...';
+  const btn=document.getElementById('jm-btn'),t=document.getElementById('jm-btn-text');
+  btn.disabled=true; t.textContent='⏳ Searching...';
   document.getElementById('jobs-loading').classList.remove('hidden');
-  document.getElementById('jobs-list').innerHTML = '';
+  document.getElementById('jobs-list').innerHTML='';
   try {
-    const res = await fetch('/career-jobs/match', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: _resumeText, skills: _resumeSkills, roles: _resumeRoles, limit: 20}) });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed');
-    _jobs = (_jobs.length ? _jobs : []).concat(data.jobs || []);
-    // Dedupe
-    const seen = new Set(); _jobs = _jobs.filter(j => { const k = j.id; if(seen.has(k)) return false; seen.add(k); return true; });
-    document.getElementById('jobs-list').innerHTML = data.jobs.map((j,i) => jobCardHTML(j, i, 'tab')).join('') || '<p class="text-slate-400 text-sm text-center py-8">No jobs found. Try again.</p>';
-  } catch(e) { showErr('jm-error', e.message); }
-  finally { btn.disabled=false; btnText.textContent='🔄 Refresh'; document.getElementById('jobs-loading').classList.add('hidden'); }
+    const res=await fetch('/career-jobs/match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,skills:_resumeSkills,roles:_resumeRoles,limit:20})});
+    const data=await res.json();
+    if(!data.success) throw new Error(data.error||'Failed');
+    document.getElementById('jobs-list').innerHTML=data.jobs?.length?data.jobs.map((j,i)=>jobCardHTML(j,i,'tab')).join(''):'<div class="text-center py-8 text-slate-500 text-sm">No jobs found. Try refreshing.</div>';
+  } catch(e){showErr('jm-error',e.message);}
+  finally{btn.disabled=false;t.textContent='🔄 Refresh';document.getElementById('jobs-loading').classList.add('hidden');}
 }
 
-// ── Save / Skip / Tailor ───────────────────────────────────
-function toggleSave(idx, container) {
-  const j = _jobs[idx]; if (!j) return;
-  const i = _savedJobs.indexOf(j.id);
-  if (i === -1) _savedJobs.push(j.id); else _savedJobs.splice(i, 1);
-  localStorage.setItem('kx_saved', JSON.stringify(_savedJobs));
-  refreshCard(idx, container);
+function toggleSave(idx,container) {
+  const j=_jobs[idx];if(!j)return;
+  const i=_savedJobs.indexOf(j.id);
+  if(i===-1)_savedJobs.push(j.id);else _savedJobs.splice(i,1);
+  localStorage.setItem('kx_saved',JSON.stringify(_savedJobs));
+  const el=document.getElementById(`jcard-${container}-${idx}`);
+  if(el&&_jobs[idx]) el.outerHTML=jobCardHTML(j,idx,container);
+  updateStats();
 }
 
-function skipJob(idx, container) {
-  const j = _jobs[idx]; if (!j) return;
-  if (!_skippedJobs.includes(j.id)) _skippedJobs.push(j.id);
-  localStorage.setItem('kx_skipped', JSON.stringify(_skippedJobs));
-  const el = document.getElementById(`jcard-${container}-${idx}`);
-  if (el) { el.style.transition='all 0.3s'; el.style.opacity='0'; el.style.height='0'; el.style.overflow='hidden'; setTimeout(()=>el.remove(), 300); }
-}
-
-function refreshCard(idx, container) {
-  const el = document.getElementById(`jcard-${container}-${idx}`);
-  if (el && _jobs[idx]) el.outerHTML = jobCardHTML(_jobs[idx], idx, container);
-}
-
-async function tailorJob(idx) {
-  const j = _jobs[idx]; if (!j) return;
-  document.getElementById('rw-role').value = j.title;
-  switchTab('rewrite');
-  populateRoleChips();
-  setTimeout(() => {
-    document.querySelectorAll('#rw-role-chips .chip-btn').forEach(b => {
-      b.classList.toggle('active', b.textContent.trim() === j.title);
-    });
-  }, 100);
-}
-
-// ── Apply Kit ──────────────────────────────────────────────
 async function openApplyKit(idx) {
-  const j = _jobs[idx]; if (!j) return;
-  document.getElementById('kit-title').textContent = `Apply Kit — ${j.title} @ ${j.company}`;
-  document.getElementById('kit-content').innerHTML = '<div class="py-8 text-center text-slate-400 text-sm">⏳ Generating your Apply Kit...</div>';
+  const j=_jobs[idx];if(!j)return;
+  document.getElementById('kit-title').textContent=`Apply Kit — ${j.title} @ ${j.company}`;
+  document.getElementById('kit-content').innerHTML='<div class="py-8 text-center text-slate-400 text-sm">⏳ Generating...</div>';
   document.getElementById('kit-modal').classList.remove('hidden');
   try {
-    const res = await fetch('/career-jobs/apply-kit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({resume_text: _resumeText, job_title: j.title, company: j.company}) });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed');
-    const d = data.data;
-    document.getElementById('kit-content').innerHTML = `<div class="space-y-4">
-      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">📧 EMAIL SUBJECT</span><button onclick="copyEl('kit-subj',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><p id="kit-subj" class="text-sm text-white">${x(d.email_subject||'')}</p></div>
-      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">📨 APPLICATION EMAIL</span><button onclick="copyEl('kit-email',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="kit-email" class="text-sm text-slate-200">${x(d.email_body||'')}</pre></div>
-      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">📝 COVER LETTER</span><button onclick="copyEl('kit-cl',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="kit-cl" class="text-sm text-slate-200">${x(d.cover_letter||'')}</pre></div>
-      ${d.key_talking_points?.length?`<div class="bg-slate-800 rounded-xl p-4"><span class="text-xs font-semibold text-emerald-400 block mb-2">🎯 KEY TALKING POINTS</span><ul class="space-y-1">${d.key_talking_points.map(p=>`<li class="text-sm text-slate-200 flex gap-2"><span class="text-emerald-400 flex-shrink-0">→</span>${x(p)}</li>`).join('')}</ul></div>`:''}
+    const res=await fetch('/career-jobs/apply-kit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_title:j.title,company:j.company})});
+    const data=await res.json();
+    if(!data.success) throw new Error(data.error||'Failed');
+    const d=data.data;
+    document.getElementById('kit-content').innerHTML=`<div class="space-y-4">
+      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">EMAIL SUBJECT</span><button onclick="copyEl('kit-subj',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><p id="kit-subj" class="text-sm text-white">${x(d.email_subject||'')}</p></div>
+      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">APPLICATION EMAIL</span><button onclick="copyEl('kit-email',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="kit-email" class="text-sm text-slate-200">${x(d.email_body||'')}</pre></div>
+      <div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">COVER LETTER</span><button onclick="copyEl('kit-cl',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="kit-cl" class="text-sm text-slate-200">${x(d.cover_letter||'')}</pre></div>
+      ${d.key_talking_points?.length?`<div class="bg-slate-800 rounded-xl p-4"><span class="text-xs font-semibold text-emerald-400 block mb-2">KEY TALKING POINTS</span><ul class="space-y-1">${d.key_talking_points.map(p=>`<li class="text-sm text-slate-200 flex gap-2"><span class="text-emerald-400">→</span>${x(p)}</li>`).join('')}</ul></div>`:''}
     </div>`;
-  } catch(e) { document.getElementById('kit-content').innerHTML = `<p class="text-rose-400 text-sm p-4">⚠️ ${x(e.message)}</p>`; }
+  } catch(e){document.getElementById('kit-content').innerHTML=`<p class="text-rose-400 text-sm p-4">⚠️ ${x(e.message)}</p>`;}
 }
-function closeKit() { document.getElementById('kit-modal').classList.add('hidden'); }
+function closeKit(){document.getElementById('kit-modal').classList.add('hidden');}
 
 // ── Analyzer ───────────────────────────────────────────────
-async function runAnalysis() {
-  if (!requireResume('analyze-error')) return;
-  const job = document.getElementById('analyze-job').value.trim();
-  if (!job) { showErr('analyze-error','Please paste a job description.'); return; }
+async function runAnalysis(){
+  if(!requireResume('analyze-error'))return;
+  const job=document.getElementById('analyze-job')?.value?.trim();
+  if(!job){showErr('analyze-error','Please paste a job description.');return;}
   clearErr('analyze-error');
   const btn=document.getElementById('analyze-btn'),t=document.getElementById('analyze-btn-text');
-  btn.disabled=true; t.textContent='⏳ Analyzing...';
-  document.getElementById('analyze-results').classList.add('hidden');
-  try {
+  btn.disabled=true;t.textContent='⏳ Analyzing...';
+  document.getElementById('analyze-results')?.classList.add('hidden');
+  try{
     const res=await fetch('/career/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:job})});
     const data=await res.json();
-    if(!data.success) throw new Error(data.detail?.error||data.detail||'Failed');
+    if(!data.success)throw new Error(data.detail?.error||'Failed');
     const r=data.data.resume||{},m=data.data.match||{};
-    let html=`<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center"><div class="text-3xl font-bold text-indigo-400">${r.ats_score!=null?r.ats_score+'%':'—'}</div><div class="text-xs text-slate-400 mt-1">ATS Score</div></div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center"><div class="text-3xl font-bold text-emerald-400">${m.match_score!=null?m.match_score+'%':'—'}</div><div class="text-xs text-slate-400 mt-1">Match</div></div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center"><div class="text-3xl font-bold text-amber-400">${r.experience_years??'—'}</div><div class="text-xs text-slate-400 mt-1">Exp Years</div></div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center"><div class="text-3xl font-bold text-sky-400">${m.matched_skills?.length??'—'}</div><div class="text-xs text-slate-400 mt-1">Skills Matched</div></div>
+    let html=`<div class="grid grid-cols-4 gap-3 mb-4">
+      <div class="bg-slate-800 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-indigo-400">${r.ats_score!=null?r.ats_score+'%':'—'}</div><div class="text-xs text-slate-400 mt-1">ATS</div></div>
+      <div class="bg-slate-800 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-emerald-400">${m.match_score!=null?m.match_score+'%':'—'}</div><div class="text-xs text-slate-400 mt-1">Match</div></div>
+      <div class="bg-slate-800 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-amber-400">${r.experience_years??'—'}</div><div class="text-xs text-slate-400 mt-1">Exp Yrs</div></div>
+      <div class="bg-slate-800 rounded-xl p-3 text-center"><div class="text-2xl font-bold text-sky-400">${m.matched_skills?.length??'—'}</div><div class="text-xs text-slate-400 mt-1">Matched</div></div>
     </div>
-    <div class="grid md:grid-cols-2 gap-3 mb-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><h4 class="text-xs font-semibold text-emerald-400 mb-2">✅ SKILLS MATCHED</h4><div class="flex flex-wrap gap-1">${(m.matched_skills||r.skills||[]).map(s=>`<span class="badge bg-emerald-900 text-emerald-300">${x(s)}</span>`).join('')||'<span class="text-slate-500 text-xs">None</span>'}</div></div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><h4 class="text-xs font-semibold text-rose-400 mb-2">❌ SKILLS GAP</h4><div class="flex flex-wrap gap-1">${(m.missing_skills||r.missing_skills||[]).map(s=>`<span class="badge bg-rose-900 text-rose-300">${x(s)}</span>`).join('')||'<span class="text-slate-500 text-xs">None — great match!</span>'}</div></div>
-    </div>`;
-    if((m.resume_improvements||[]).length) html+=`<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-4"><h4 class="text-xs font-semibold text-amber-400 mb-2">💡 RESUME IMPROVEMENTS</h4><ul class="space-y-1">${m.resume_improvements.map(i=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-amber-400">→</span>${x(i)}</li>`).join('')}</ul></div>`;
-    html+=`<div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><h4 class="text-xs font-semibold text-indigo-400">📝 COVER LETTER</h4><button onclick="copyEl('cl-out',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="cl-out" class="text-sm text-slate-300 leading-relaxed">${x(data.data.cover_letter||'')}</pre></div>`;
+    <div class="bg-slate-800 rounded-xl p-4 mb-3"><div class="flex justify-between mb-2"><span class="text-xs font-semibold text-indigo-400">COVER LETTER</span><button onclick="copyEl('cl-out',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><pre id="cl-out" class="text-sm text-slate-300">${x(data.data.cover_letter||'')}</pre></div>`;
     document.getElementById('analyze-results').innerHTML=html;
     document.getElementById('analyze-results').classList.remove('hidden');
-    document.getElementById('analyze-results').scrollIntoView({behavior:'smooth',block:'start'});
-  } catch(e) { showErr('analyze-error',e.message); }
-  finally { btn.disabled=false; t.textContent='⚡ Analyze My Fit'; }
-}
-
-// ── Rewrite PDF ────────────────────────────────────────────
-async function runRewritePDF() {
-  if (!requireResume('rw-error')) return;
-  const role = document.getElementById('rw-role').value.trim() || (_resumeRoles[0] || 'my target role');
-  clearErr('rw-error');
-  const btn=document.getElementById('rw-btn'),t=document.getElementById('rw-btn-text');
-  btn.disabled=true; t.textContent='⏳ Rewriting for ' + role + '... (~30s)';
-  try {
-    const syntheticJD = `Rewrite this resume to be optimally tailored for: ${role}. Emphasize relevant experience and skills.`;
-    const res=await fetch('/resume/rewrite/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:syntheticJD,target_role:role})});
-    if (!res.ok) { const e=await res.json(); throw new Error(e.detail||'Rewrite failed'); }
-    const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url; a.download=`${role.toLowerCase().replace(/\s+/g,'-')}-resume.pdf`; a.click(); URL.revokeObjectURL(url);
-    t.textContent='✅ Downloaded!'; setTimeout(()=>t.textContent='📄 Rewrite & Download ATS PDF',3000);
-  } catch(e) { showErr('rw-error',e.message); }
-  finally { btn.disabled=false; }
+  }catch(e){showErr('analyze-error',e.message);}
+  finally{btn.disabled=false;t.textContent='⚡ Analyze My Fit';}
 }
 
 // ── Interview Prep ─────────────────────────────────────────
-async function runInterviewPrep() {
-  if (!requireResume('iv-error')) return;
-  // Use typed role, chip-selected role, or top role from resume
-  const role = document.getElementById('iv-role').value.trim()
-    || window._ivSelectedRole
-    || (_resumeRoles[0] || 'the target role');
-  // Build a JD-like description from the role + resume context
-  const syntheticJD = `Role: ${role}\nThis position requires someone with the candidate's background in ${_resumeSkills.slice(0,5).join(', ')}.`;
+let _ivRole='';
+async function runInterviewPrep(){
+  if(!requireResume('iv-error'))return;
+  const role=document.getElementById('iv-role').value.trim()||_ivRole||(_resumeRoles[0]||'the target role');
   clearErr('iv-error');
   const btn=document.getElementById('iv-btn'),t=document.getElementById('iv-btn-text');
-  btn.disabled=true; t.textContent='⏳ Generating prep for ' + role + '...';
+  btn.disabled=true;t.textContent='⏳ Generating...';
   document.getElementById('iv-results').classList.add('hidden');
-  try {
-    const res=await fetch('/interview/prep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:syntheticJD})});
+  try{
+    const jd=`Role: ${role}. Requires: ${_resumeSkills.slice(0,5).join(', ')}.`;
+    const res=await fetch('/interview/prep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:jd})});
     const data=await res.json();
-    if (!data.success) throw new Error(data.error||'Failed');
-    const d=data.data; let html=`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-3 text-sm text-indigo-200 mb-2">Preparing you for: <strong>${x(role)}</strong></div>`;
-    if(d.role_summary) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm text-slate-200">💡 ${x(d.role_summary)}</div>`;
-    if(d.salary_range) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm text-white">💰 <strong>${x(d.salary_range)}</strong>${d.negotiation_tip?` · <span class="text-slate-400">${x(d.negotiation_tip)}</span>`:''}</div>`;
-    (d.questions||[]).forEach((q,i)=>{html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-5"><div class="flex gap-2 mb-2"><span class="badge bg-indigo-900 text-indigo-300">${x(q.category||'')}</span><span class="text-xs text-slate-500">Q${i+1}</span></div><p class="font-semibold text-sm text-white mb-3">${x(q.question||'')}</p><div class="text-xs text-slate-400 mb-2">❓ ${x(q.why_asked||'')}</div><div class="bg-slate-800 rounded-lg p-3 text-sm text-slate-200 mb-2"><strong class="text-emerald-400">✅ Strong answer:</strong><br/>${x(q.coached_answer||'')}</div>${q.red_flags?`<div class="text-xs text-rose-400">⚠️ ${x(q.red_flags)}</div>`:''}</div>`;});
+    if(!data.success)throw new Error(data.error||'Failed');
+    const d=data.data;let html=`<div class="text-xs text-slate-400 mb-3">Prep for: <strong class="text-white">${x(role)}</strong></div>`;
+    if(d.salary_range)html+=`<div class="bg-slate-800 rounded-xl p-3 text-sm text-white mb-3">💰 ${x(d.salary_range)}</div>`;
+    (d.questions||[]).forEach((q,i)=>{html+=`<div class="bg-slate-800 rounded-xl p-4 mb-3"><div class="flex gap-2 mb-2"><span class="badge bg-indigo-900 text-indigo-300 text-xs">${x(q.category||'')}</span></div><p class="font-semibold text-sm text-white mb-2">${x(q.question||'')}</p><div class="bg-slate-700 rounded-lg p-3 text-sm text-slate-200"><span class="text-emerald-400 font-semibold">✅ </span>${x(q.coached_answer||'')}</div></div>`;});
     document.getElementById('iv-results').innerHTML=html;
     document.getElementById('iv-results').classList.remove('hidden');
-  } catch(e) { showErr('iv-error',e.message); }
-  finally { btn.disabled=false; t.textContent='🎯 Generate Interview Prep'; }
+  }catch(e){showErr('iv-error',e.message);}
+  finally{btn.disabled=false;t.textContent='Generate Interview Prep →';}
 }
 
-function populateRoleChips() {
-  ['iv','rw'].forEach(prefix => {
-    const el = document.getElementById(prefix+'-role-chips');
-    if (!el || !_resumeRoles.length) return;
-    el.innerHTML = _resumeRoles.slice(0,5).map(r =>
-      `<button onclick="selectRoleChip('${prefix}','${r.replace(/'/g,"\\'")}')" class="chip-btn badge bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 text-xs">${x(r)}</button>`
-    ).join('');
+function populateRoleChips(){
+  ['iv','rw'].forEach(p=>{
+    const el=document.getElementById(p+'-role-chips');
+    if(!el||!_resumeRoles.length)return;
+    el.innerHTML=_resumeRoles.slice(0,5).map(r=>`<button onclick="selectChip('${p}','${r.replace(/'/g,"\\'")}')" class="badge bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 text-xs cursor-pointer hover:bg-slate-700">${x(r)}</button>`).join('');
   });
 }
-window._ivSelectedRole = '';
-function selectRoleChip(prefix, role) {
-  if (prefix === 'iv') { document.getElementById('iv-role').value = role; window._ivSelectedRole = role; }
-  if (prefix === 'rw') { document.getElementById('rw-role').value = role; }
-  document.querySelectorAll(`#${prefix}-role-chips .chip-btn`).forEach(b => {
-    b.classList.toggle('active', b.textContent.trim() === role);
-  });
+function selectChip(p,r){
+  if(p==='iv'){document.getElementById('iv-role').value=r;_ivRole=r;}
+  if(p==='rw')document.getElementById('rw-role').value=r;
+  document.querySelectorAll(`#${p}-role-chips button`).forEach(b=>b.classList.toggle('bg-indigo-900',b.textContent.trim()===r));
+}
+
+// ── Rewrite PDF ────────────────────────────────────────────
+async function runRewritePDF(){
+  if(!requireResume('rw-error'))return;
+  const role=document.getElementById('rw-role').value.trim()||(_resumeRoles[0]||'target role');
+  clearErr('rw-error');
+  const btn=document.getElementById('rw-btn'),t=document.getElementById('rw-btn-text');
+  btn.disabled=true;t.textContent='⏳ Rewriting...';
+  try{
+    const jd=`Rewrite this resume for: ${role}`;
+    const res=await fetch('/resume/rewrite/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_description:jd,target_role:role})});
+    if(!res.ok){const e=await res.json();throw new Error(e.detail||'Failed');}
+    const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`${role.toLowerCase().replace(/\s+/g,'-')}-resume.pdf`;a.click();URL.revokeObjectURL(url);
+    t.textContent='✅ Downloaded!';setTimeout(()=>t.textContent='📄 Rewrite & Download PDF →',3000);
+  }catch(e){showErr('rw-error',e.message);}
+  finally{btn.disabled=false;}
 }
 
 // ── Job Scanner ────────────────────────────────────────────
-async function runJobScan() {
-  if (!requireResume('sc-error')) return;
+async function runJobScan(){
+  if(!requireResume('sc-error'))return;
   const url=document.getElementById('sc-url').value.trim();
-  if (!url) { showErr('sc-error','Please enter a job URL.'); return; }
+  if(!url){showErr('sc-error','Please enter a job URL.');return;}
   clearErr('sc-error');
   const btn=document.getElementById('sc-btn'),t=document.getElementById('sc-btn-text');
-  btn.disabled=true; t.textContent='⏳ Scanning...';
+  btn.disabled=true;t.textContent='⏳ Scanning...';
   document.getElementById('sc-results').classList.add('hidden');
-  try {
+  try{
     const res=await fetch('/job/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_url:url,resume_text:_resumeText})});
     const data=await res.json();
-    if (!data.success) throw new Error(data.error||'Scan failed');
+    if(!data.success)throw new Error(data.error||'Failed');
     const d=data.data;
     const vc=d.recruiter_verdict==='hire'?'text-emerald-400':d.recruiter_verdict==='maybe'?'text-amber-400':'text-rose-400';
-    const vi=d.recruiter_verdict==='hire'?'✅':d.recruiter_verdict==='maybe'?'⚡':'❌';
     document.getElementById('sc-results').innerHTML=`
       <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center"><div class="text-4xl font-bold text-indigo-400">${d.fit_score||0}%</div><div class="text-xs text-slate-400 mt-1">Fit Score</div></div>
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center"><div class="text-2xl font-bold ${vc}">${vi} ${(d.recruiter_verdict||'').toUpperCase()}</div><div class="text-xs text-slate-400 mt-1">Recruiter Verdict</div></div>
+        <div class="bg-slate-800 rounded-xl p-4 text-center"><div class="text-3xl font-bold text-indigo-400">${d.fit_score||0}%</div><div class="text-xs text-slate-400 mt-1">Fit Score</div></div>
+        <div class="bg-slate-800 rounded-xl p-4 text-center"><div class="text-xl font-bold ${vc}">${(d.recruiter_verdict||'').toUpperCase()}</div><div class="text-xs text-slate-400 mt-1">Verdict</div></div>
       </div>
-      ${d['6_second_view']?`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 text-sm text-indigo-200 mb-3">👁️ <strong>6-Second View:</strong> ${x(d['6_second_view'])}</div>`:''}
-      <div class="grid md:grid-cols-2 gap-3 mb-3">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-emerald-400 mb-2">✅ MATCHED</h4><div class="flex flex-wrap gap-1">${(d.matched_keywords||[]).map(k=>`<span class="badge bg-emerald-900 text-emerald-300">${x(k)}</span>`).join('')||'<span class="text-slate-500 text-xs">None</span>'}</div></div>
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-rose-400 mb-2">❌ MISSING</h4><div class="flex flex-wrap gap-1">${(d.missing_keywords||[]).map(k=>`<span class="badge bg-rose-900 text-rose-300">${x(k)}</span>`).join('')||'<span class="text-slate-500 text-xs">Great fit!</span>'}</div></div>
-      </div>
-      ${d.recommended_action?`<div class="bg-amber-950 border border-amber-800 rounded-xl p-4 text-sm text-amber-200">🎯 <strong>Next step:</strong> ${x(d.recommended_action)}</div>`:''}`;
+      ${d['6_second_view']?`<div class="bg-slate-800 rounded-xl p-4 mb-3 text-sm text-slate-200">👁️ ${x(d['6_second_view'])}</div>`:''}
+      ${d.recommended_action?`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 text-sm text-indigo-200">🎯 ${x(d.recommended_action)}</div>`:''}`;
     document.getElementById('sc-results').classList.remove('hidden');
-  } catch(e) { showErr('sc-error',e.message); }
-  finally { btn.disabled=false; t.textContent='🔍 Scan Job'; }
+  }catch(e){showErr('sc-error',e.message);}
+  finally{btn.disabled=false;t.textContent='Scan Job →';}
 }
 
+// ── LinkedIn Outreach ──────────────────────────────────────
+async function runLinkedIn(){
+  if(!requireResume('li-error'))return;
+  clearErr('li-error');
+  const btn=document.getElementById('li-btn'),t=document.getElementById('li-btn-text');
+  btn.disabled=true;t.textContent='⏳ Writing messages...';
+  document.getElementById('li-results').classList.add('hidden');
+  try{
+    const res=await fetch('/tools/linkedin-outreach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,job_title:document.getElementById('li-role').value.trim(),company:document.getElementById('li-company').value.trim(),recruiter_name:document.getElementById('li-name').value.trim(),context:document.getElementById('li-context').value})});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error||'Failed');
+    const d=data.data;
+    let html=(d.messages||[]).map((m,i)=>`<div class="bg-slate-800 rounded-xl p-4"><div class="flex justify-between mb-2"><span class="badge bg-indigo-900 text-indigo-200">${x(m.label)}</span><button onclick="copyEl('li-msg-${i}',this)" class="text-xs text-slate-400 hover:text-white">Copy</button></div><p id="li-msg-${i}" class="text-sm text-slate-200">${x(m.message)}</p><div class="text-xs text-slate-500 mt-1">${m.message?.length||0} chars</div></div>`).join('');
+    document.getElementById('li-results').innerHTML=html;
+    document.getElementById('li-results').classList.remove('hidden');
+  }catch(e){showErr('li-error',e.message);}
+  finally{btn.disabled=false;t.textContent='Generate Messages →';}
+}
+
+// ── Salary Intel ───────────────────────────────────────────
+async function runSalaryIntel(){
+  if(!requireResume('sal-error'))return;
+  clearErr('sal-error');
+  const btn=document.getElementById('sal-btn'),t=document.getElementById('sal-btn-text');
+  btn.disabled=true;t.textContent='⏳ Analyzing...';
+  document.getElementById('sal-results').classList.add('hidden');
+  try{
+    const res=await fetch('/tools/salary-intel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,target_role:document.getElementById('sal-role').value.trim(),location:document.getElementById('sal-location').value.trim()})});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error||'Failed');
+    const d=data.data;
+    document.getElementById('sal-results').innerHTML=`
+      <div class="bg-slate-800 rounded-xl p-5 text-center mb-3"><div class="text-2xl font-bold text-emerald-400">${x(d.salary_range_inr||'—')}</div><div class="text-sm text-slate-400 mt-1">${x(d.salary_range_usd||'')}</div></div>
+      <div class="grid grid-cols-3 gap-3 mb-3">
+        <div class="bg-rose-950 border border-rose-800 rounded-xl p-3 text-center"><div class="text-xs text-rose-400 mb-1">Floor</div><div class="text-sm font-bold text-rose-200">${x(d.negotiation_floor||'—')}</div></div>
+        <div class="bg-emerald-950 border border-emerald-800 rounded-xl p-3 text-center"><div class="text-xs text-emerald-400 mb-1">Target</div><div class="text-sm font-bold text-emerald-200">${x(d.negotiation_target||'—')}</div></div>
+        <div class="bg-indigo-950 border border-indigo-800 rounded-xl p-3 text-center"><div class="text-xs text-indigo-400 mb-1">Ceiling</div><div class="text-sm font-bold text-indigo-200">${x(d.negotiation_ceiling||'—')}</div></div>
+      </div>
+      ${d.negotiation_tips?.length?`<div class="bg-slate-800 rounded-xl p-4"><div class="text-xs font-semibold text-violet-400 mb-2">NEGOTIATION TIPS</div><ul class="space-y-1">${d.negotiation_tips.map(t=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-violet-400">→</span>${x(t)}</li>`).join('')}</ul></div>`:''}`;
+    document.getElementById('sal-results').classList.remove('hidden');
+  }catch(e){showErr('sal-error',e.message);}
+  finally{btn.disabled=false;t.textContent='Analyze My Market Value →';}
+}
+
+// ── Career Path Simulator ──────────────────────────────────
+let _pathAmbition='balanced';
+function setAmbition(level){
+  _pathAmbition=level;
+  ['conservative','balanced','ambitious'].forEach(l=>{
+    const b=document.getElementById('amb-'+l);
+    if(b) b.className='badge border px-3 py-1.5 cursor-pointer text-xs '+(l===level?'bg-indigo-900 text-indigo-200 border-indigo-700':'bg-slate-800 text-slate-300 border-slate-700');
+  });
+}
+
+async function runCareerPaths(){
+  if(!requireResume('paths-error'))return;
+  clearErr('paths-error');
+  const btn=document.getElementById('paths-btn'),t=document.getElementById('paths-btn-text');
+  btn.disabled=true;t.textContent='⏳ Mapping paths...';
+  document.getElementById('paths-results').classList.add('hidden');
+  try{
+    const res=await fetch('/career-path/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resume_text:_resumeText,ambition:_pathAmbition})});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error||'Failed');
+    renderPaths(data.data);
+  }catch(e){showErr('paths-error',e.message);}
+  finally{btn.disabled=false;t.textContent='Simulate My Paths →';}
+}
+
+function renderPaths(d){
+  const COLS=['indigo','violet','teal'];
+  let html='';
+  if(d.current_role) html+=`<div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3 mb-2"><span class="text-xl">📍</span><div><div class="text-xs text-slate-400">Currently</div><div class="font-bold text-white">${x(d.current_role)}</div></div></div>`;
+  (d.paths||[]).forEach((p,pi)=>{
+    const col=COLS[pi]||'indigo';
+    const diffColor=p.difficulty==='Easy'?'text-emerald-400':p.difficulty==='Hard'?'text-rose-400':'text-amber-400';
+    html+=`<div class="border border-${col}-800 rounded-xl overflow-hidden">
+      <div class="bg-${col}-950/50 px-5 py-4 border-b border-${col}-800">
+        <div class="flex justify-between items-start gap-2">
+          <div><div class="font-bold text-white">${x(p.path_name||'')}</div><div class="text-sm text-slate-400 mt-0.5">${x(p.tagline||'')}</div></div>
+          <span class="${diffColor} text-xs font-semibold flex-shrink-0">${x(p.difficulty||'')}</span>
+        </div>
+      </div>
+      <div class="bg-slate-900 p-5 space-y-4">
+        ${p.next_role?`<div class="flex gap-3"><div class="w-7 h-7 bg-${col}-700 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">1</div><div><div class="flex flex-wrap gap-1.5 mb-1"><span class="font-semibold text-white text-sm">${x(p.next_role.title||'')}</span><span class="badge bg-emerald-900 text-emerald-300">${x(p.next_role.timeline||'')}</span>${p.next_role.salary_jump?`<span class="badge bg-amber-900 text-amber-300">${x(p.next_role.salary_jump)}</span>`:''}</div>${p.next_role.how_to_get_there?`<div class="text-xs text-slate-400 bg-slate-800 rounded px-3 py-2">${x(p.next_role.how_to_get_there)}</div>`:''}</div></div>`:''}
+        ${p.milestone_role?`<div class="flex gap-3"><div class="w-7 h-7 bg-${col}-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">2</div><div><div class="flex flex-wrap gap-1.5 mb-1"><span class="font-semibold text-white text-sm">${x(p.milestone_role.title||'')}</span><span class="badge bg-indigo-900 text-indigo-300">${x(p.milestone_role.timeline||'')}</span>${p.milestone_role.salary_range?`<span class="badge bg-emerald-900 text-emerald-300">${x(p.milestone_role.salary_range)}</span>`:''}</div></div></div>`:''}
+        ${p.peak_role?`<div class="flex gap-3"><div class="w-7 h-7 bg-amber-500 rounded-full flex-shrink-0 flex items-center justify-center text-sm">🏆</div><div><div class="flex flex-wrap gap-1.5"><span class="font-bold text-amber-300 text-sm">${x(p.peak_role.title||'')}</span>${p.peak_role.salary_range?`<span class="badge bg-amber-900 text-amber-300">${x(p.peak_role.salary_range)}</span>`:''}</div></div></div>`:''}
+      </div>
+    </div>`;
+  });
+  if(d.one_move_this_week) html+=`<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 flex gap-3"><span class="text-xl">⚡</span><div><div class="text-xs text-indigo-400 font-semibold">DO THIS WEEK</div><div class="text-sm text-white font-medium mt-1">${x(d.one_move_this_week)}</div></div></div>`;
+  document.getElementById('paths-results').innerHTML=html;
+  document.getElementById('paths-results').classList.remove('hidden');
+  document.getElementById('paths-results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Application Tracker ────────────────────────────────────
+function saveApps(){localStorage.setItem('kx_apps',JSON.stringify(_applications));updateStats();}
+function renderTracker(){
+  const el=document.getElementById('tracker-list');
+  if(!_applications.length){el.innerHTML='<div class="text-center py-8 text-slate-500 text-sm bg-slate-900 border border-slate-800 rounded-xl"><div class="text-3xl mb-2">📋</div>No applications yet.<br/>Add one above.</div>';
+    document.getElementById('tracker-stats').innerHTML='';return;}
+  const stats=APP_STATUSES.reduce((a,s)=>{a[s]=_applications.filter(ap=>ap.status===s).length;return a;},{});
+  document.getElementById('tracker-stats').innerHTML=`<div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">${APP_STATUSES.map(s=>`<div class="bg-slate-800 rounded-xl p-3 text-center"><div class="text-xl font-bold text-white">${stats[s]||0}</div><div class="text-xs text-slate-400">${s}</div></div>`).join('')}</div>`;
+  el.innerHTML=[..._applications].sort((a,b)=>new Date(b.date)-new Date(a.date)).map((app)=>`
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div><div class="font-semibold text-white text-sm">${x(app.title)}</div><div class="text-slate-400 text-xs">${x(app.company)} · ${app.date}</div></div>
+        <div class="flex items-center gap-2">
+          <select onchange="updateAppStatus(${_applications.indexOf(app)},this.value)" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2 py-1">${APP_STATUSES.map(s=>`<option ${app.status===s?'selected':''}>${s}</option>`).join('')}</select>
+          <button onclick="removeApp(${_applications.indexOf(app)})" class="text-slate-600 hover:text-rose-400 text-lg">&times;</button>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-2"><span class="badge ${STATUS_COLORS[app.status]||'bg-slate-700 text-slate-300'}">${app.status}</span>${app.url?`<a href="${x(app.url)}" target="_blank" class="badge bg-slate-800 text-slate-300">View ↗</a>`:''}</div>
+    </div>`).join('');
+}
+function addApplication(){
+  const title=document.getElementById('app-title').value.trim(),company=document.getElementById('app-company').value.trim();
+  if(!title||!company){showErr('tracker-error','Title and company required.');return;}
+  clearErr('tracker-error');
+  _applications.push({id:Date.now().toString(),title,company,url:document.getElementById('app-url').value.trim(),notes:document.getElementById('app-notes').value.trim(),status:'Applied',date:new Date().toLocaleDateString('en-IN')});
+  saveApps();['app-title','app-company','app-url','app-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderTracker();
+}
+function updateAppStatus(idx,status){if(_applications[idx]){_applications[idx].status=status;saveApps();renderTracker();}}
+function removeApp(idx){_applications.splice(idx,1);saveApps();renderTracker();}
+
 // ── WebSocket Coach ────────────────────────────────────────
-let ws, currentAIBubble=null;
-function initWebSocket() {
+let ws,currentAIBubble=null;
+function initWebSocket(){
   const proto=location.protocol==='https:'?'wss':'ws';
   ws=new WebSocket(`${proto}://${location.host}/ws/agent`);
   setWsStatus('Connecting...');
-  ws.onopen=()=>{ window._wsReady=true; setWsStatus(''); };
-  ws.onmessage=e=>{ try { const m=JSON.parse(e.data); if(m.type==='chunk') appendChunk(m.data); if(m.type==='done') finalizeAI(); if(m.type==='error') appendAI('⚠️ '+(m.error||'Error')); } catch{} };
-  ws.onclose=()=>{ window._wsReady=false; setWsStatus(''); setTimeout(initWebSocket,4000); };
+  ws.onopen=()=>{window._wsReady=true;setWsStatus('');};
+  ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.type==='chunk')appendChunk(m.data);if(m.type==='done')finalizeAI();if(m.type==='error')appendAI('⚠️ '+(m.error||'Error'));}catch{}};
+  ws.onclose=()=>{window._wsReady=false;setWsStatus('');setTimeout(initWebSocket,4000);};
   ws.onerror=()=>ws.close();
 }
-function sendChat() {
+function sendChat(){
   const input=document.getElementById('chat-input'),msg=input.value.trim();
-  if(!msg) return;
+  if(!msg)return;
   if(!ws||ws.readyState!==WebSocket.OPEN){initWebSocket();setTimeout(sendChat,700);return;}
-  appendUserMsg(msg); input.value='';
+  appendUserMsg(msg);input.value='';
   currentAIBubble=createAIBubble();
-  const ctx=_resumeText?`You are an expert AI career coach. The user's resume: ${_resumeText.slice(0,800)}. `:'You are an expert AI career coach. ';
+  const ctx=_resumeText?`You are an expert AI career coach. User's background: ${_resumeText.slice(0,600)}. `:'You are an expert AI career coach. ';
   ws.send(JSON.stringify({type:'prompt',prompt:ctx+`\nUser: ${msg}`,request_id:Date.now().toString(),model:'llama-3.1-8b-instant'}));
 }
 function appendUserMsg(t){const d=document.createElement('div');d.className='flex gap-3 justify-end';d.innerHTML=`<div class="chat-user px-4 py-3 text-sm max-w-lg">${x(t)}</div>`;document.getElementById('chat-messages').appendChild(d);scrollChat();}
@@ -633,391 +917,11 @@ function appendAI(t){finalizeAI();const w=document.createElement('div');w.classN
 function scrollChat(){const el=document.getElementById('chat-messages');el.scrollTop=el.scrollHeight;}
 function setWsStatus(m){document.getElementById('ws-status').textContent=m;}
 
-// ── Tab switching ──────────────────────────────────────────
-function switchTab(tab) {
-  if (!_resumeText && tab !== 'home') {
-    document.getElementById('gate').classList.remove('hidden');
-    document.querySelectorAll('.pane').forEach(p=>p.classList.add('hidden'));
-    return;
-  }
-  _currentTab=tab;
-  document.getElementById('gate').classList.add('hidden');
-  document.querySelectorAll('.pane').forEach(p=>p.classList.add('hidden'));
-  const pane=document.getElementById('pane-'+tab);
-  if(pane) pane.classList.remove('hidden');
-  const tabs=['home','jobs','interview','rewrite','scanner','linkedin','salary','coach','paths','tracker'];
-  tabs.forEach(t=>{
-    const el=document.getElementById('tab-'+t);
-    if(el) el.className='px-4 py-3 text-sm font-medium whitespace-nowrap '+(t===tab?'tab-active text-indigo-400':'text-slate-400 hover:text-slate-200');
-  });
-  if(tab==='coach'&&_resumeText&&!window._wsReady) initWebSocket();
-  if(tab==='jobs'&&_jobs.length===0) loadJobs();
-  if(tab==='tracker') setTimeout(renderTracker,50);
-}
-
 // ── Helpers ────────────────────────────────────────────────
 function x(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.textContent='⚠️ '+msg;el.classList.remove('hidden');}}
 function clearErr(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
 function copyEl(id,btn){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent).then(()=>{const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,2000);});}
-
-// ── LinkedIn Outreach ──────────────────────────────────────
-async function runLinkedIn() {
-  if (!requireResume('li-error')) return;
-  clearErr('li-error');
-  const btn=document.getElementById('li-btn'),t=document.getElementById('li-btn-text');
-  btn.disabled=true; t.textContent='⏳ Generating messages...';
-  document.getElementById('li-results').classList.add('hidden');
-  try {
-    const res=await fetch('/tools/linkedin-outreach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      resume_text:_resumeText,
-      job_title:document.getElementById('li-role').value.trim(),
-      company:document.getElementById('li-company').value.trim(),
-      recruiter_name:document.getElementById('li-name').value.trim(),
-      context:document.getElementById('li-context').value
-    })});
-    const data=await res.json();
-    if(!data.success) throw new Error(data.error||'Failed');
-    const d=data.data;
-    let html='';
-    (d.messages||[]).forEach((m,i)=>{
-      html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
-        <div class="flex items-center justify-between mb-2">
-          <span class="badge bg-indigo-900 text-indigo-200">${x(m.label)}</span>
-          <button onclick="copyEl('li-msg-${i}',this)" class="text-xs text-slate-400 hover:text-white">Copy</button>
-        </div>
-        <p id="li-msg-${i}" class="text-sm text-slate-200 leading-relaxed">${x(m.message)}</p>
-        <div class="text-xs text-slate-500 mt-2">${m.message?.length||0} chars</div>
-      </div>`;
-    });
-    if(d.tips?.length) html+=`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-amber-400 mb-2">💡 PRO TIPS</h4><ul class="space-y-1">${d.tips.map(t=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-amber-400">→</span>${x(t)}</li>`).join('')}</ul></div>`;
-    document.getElementById('li-results').innerHTML=html;
-    document.getElementById('li-results').classList.remove('hidden');
-  } catch(e) { showErr('li-error',e.message); }
-  finally { btn.disabled=false; t.textContent='🔗 Generate Messages'; }
-}
-
-// ── Salary Intel ───────────────────────────────────────────
-async function runSalaryIntel() {
-  if (!requireResume('sal-error')) return;
-  clearErr('sal-error');
-  const btn=document.getElementById('sal-btn'),t=document.getElementById('sal-btn-text');
-  btn.disabled=true; t.textContent='⏳ Analyzing market...';
-  document.getElementById('sal-results').classList.add('hidden');
-  try {
-    const res=await fetch('/tools/salary-intel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      resume_text:_resumeText,
-      target_role:document.getElementById('sal-role').value.trim(),
-      location:document.getElementById('sal-location').value.trim()
-    })});
-    const data=await res.json();
-    if(!data.success) throw new Error(data.error||'Failed');
-    const d=data.data;
-    document.getElementById('sal-results').innerHTML=`
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center md:col-span-2">
-          <div class="text-2xl font-bold text-emerald-400">${x(d.salary_range_inr||'—')}</div>
-          <div class="text-sm text-slate-400 mt-1">${x(d.salary_range_usd||'')}</div>
-          <div class="text-xs text-slate-500 mt-1">${x(d.target_role||'')} · ${x(d.experience_band||'')}</div>
-        </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
-          <div class="text-xs text-slate-400 mb-1">Market value</div>
-          <div class="text-sm font-semibold text-white">${x(d.current_market_value||'—')}</div>
-        </div>
-      </div>
-      <div class="grid md:grid-cols-3 gap-3 mb-4">
-        <div class="bg-rose-950 border border-rose-800 rounded-xl p-3 text-center"><div class="text-xs text-rose-400 mb-1">Floor (don't go below)</div><div class="text-sm font-bold text-rose-200">${x(d.negotiation_floor||'—')}</div></div>
-        <div class="bg-emerald-950 border border-emerald-800 rounded-xl p-3 text-center"><div class="text-xs text-emerald-400 mb-1">Target (aim for this)</div><div class="text-sm font-bold text-emerald-200">${x(d.negotiation_target||'—')}</div></div>
-        <div class="bg-indigo-950 border border-indigo-800 rounded-xl p-3 text-center"><div class="text-xs text-indigo-400 mb-1">Ceiling (funded cos)</div><div class="text-sm font-bold text-indigo-200">${x(d.negotiation_ceiling||'—')}</div></div>
-      </div>
-      ${d.top_paying_sectors?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-3"><h4 class="text-xs font-semibold text-amber-400 mb-2">🏢 TOP PAYING SECTORS</h4><div class="flex flex-wrap gap-2">${d.top_paying_sectors.map(s=>`<span class="badge bg-amber-900 text-amber-200">${x(s)}</span>`).join('')}</div></div>`:''}
-      ${d.skills_that_increase_pay?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-3"><h4 class="text-xs font-semibold text-sky-400 mb-2">📈 SKILLS THAT INCREASE YOUR PAY</h4><div class="flex flex-wrap gap-2">${d.skills_that_increase_pay.map(s=>`<span class="badge bg-sky-900 text-sky-200">${x(s)}</span>`).join('')}</div></div>`:''}
-      ${d.negotiation_tips?.length?`<div class="bg-slate-900 border border-slate-700 rounded-xl p-4"><h4 class="text-xs font-semibold text-violet-400 mb-2">💬 NEGOTIATION TIPS</h4><ul class="space-y-1">${d.negotiation_tips.map(t=>`<li class="text-sm text-slate-300 flex gap-2"><span class="text-violet-400">→</span>${x(t)}</li>`).join('')}</ul></div>`:''}
-    `;
-    document.getElementById('sal-results').classList.remove('hidden');
-  } catch(e) { showErr('sal-error',e.message); }
-  finally { btn.disabled=false; t.textContent='💰 Analyze My Market Value'; }
-}
-
-// ── Application Tracker ────────────────────────────────────
-let _applications = JSON.parse(localStorage.getItem('kx_apps')||'[]');
-const APP_STATUSES = ['Applied','Phone Screen','Interview','Offer','Rejected','Ghosted'];
-const STATUS_COLORS = {Applied:'bg-indigo-900 text-indigo-200',['Phone Screen']:'bg-sky-900 text-sky-200',Interview:'bg-amber-900 text-amber-200',Offer:'bg-emerald-900 text-emerald-200',Rejected:'bg-rose-900 text-rose-200',Ghosted:'bg-slate-700 text-slate-400'};
-
-function saveApps(){localStorage.setItem('kx_apps',JSON.stringify(_applications));}
-
-function renderTracker() {
-  const el=document.getElementById('tracker-list');
-  if(!_applications.length){el.innerHTML='<div class="text-center py-12 text-slate-500"><div class="text-4xl mb-3">📋</div><div class="text-sm">No applications tracked yet.<br/>Add one below or click "Track" on any job.</div></div>';return;}
-  const sorted=[..._applications].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  el.innerHTML=sorted.map((app,i)=>`
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div class="flex items-start justify-between gap-3">
-        <div class="flex-1">
-          <div class="font-semibold text-white text-sm">${x(app.title)}</div>
-          <div class="text-slate-400 text-xs mt-0.5">${x(app.company)} · Applied ${app.date}</div>
-        </div>
-        <div class="flex items-center gap-2">
-          <select onchange="updateStatus(${_applications.indexOf(app)},this.value)" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2 py-1 focus:outline-none">
-            ${APP_STATUSES.map(s=>`<option value="${s}" ${app.status===s?'selected':''}>${s}</option>`).join('')}
-          </select>
-          <button onclick="removeApp(${_applications.indexOf(app)})" class="text-slate-600 hover:text-rose-400 text-lg leading-none">&times;</button>
-        </div>
-      </div>
-      ${app.notes?`<div class="text-xs text-slate-400 mt-2 bg-slate-800 rounded-lg px-3 py-2">${x(app.notes)}</div>`:''}
-      <div class="flex gap-2 mt-3">
-        <span class="badge ${STATUS_COLORS[app.status]||'bg-slate-700 text-slate-300'}">${app.status}</span>
-        ${app.url?`<a href="${x(app.url)}" target="_blank" class="badge bg-slate-800 text-slate-300 hover:bg-slate-700">View Job ↗</a>`:''}
-      </div>
-    </div>`).join('');
-  // Stats
-  const stats=APP_STATUSES.reduce((acc,s)=>{acc[s]=_applications.filter(a=>a.status===s).length;return acc;},{});
-  document.getElementById('tracker-stats').innerHTML=`
-    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
-      ${APP_STATUSES.map(s=>`<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center"><div class="text-xl font-bold text-white">${stats[s]||0}</div><div class="text-xs text-slate-400">${s}</div></div>`).join('')}
-    </div>`;
-}
-
-function addApplication() {
-  const title=document.getElementById('app-title').value.trim();
-  const company=document.getElementById('app-company').value.trim();
-  if(!title||!company){showErr('tracker-error','Job title and company are required.');return;}
-  clearErr('tracker-error');
-  _applications.push({
-    id:Date.now().toString(),
-    title,company,
-    url:document.getElementById('app-url').value.trim(),
-    notes:document.getElementById('app-notes').value.trim(),
-    status:'Applied',
-    date:new Date().toLocaleDateString('en-IN')
-  });
-  saveApps();
-  document.getElementById('app-title').value='';
-  document.getElementById('app-company').value='';
-  document.getElementById('app-url').value='';
-  document.getElementById('app-notes').value='';
-  renderTracker();
-}
-
-function updateStatus(idx,status){if(_applications[idx]){_applications[idx].status=status;saveApps();renderTracker();}}
-function removeApp(idx){_applications.splice(idx,1);saveApps();renderTracker();}
-
-// Expose trackJob for job cards
-window.trackJob=function(idx){
-  const j=_jobs[idx];if(!j)return;
-  _applications.push({id:Date.now().toString(),title:j.title,company:j.company,url:j.url,notes:'',status:'Applied',date:new Date().toLocaleDateString('en-IN')});
-  saveApps();
-  switchTab('tracker');
-};
-
-// ── Career Path Simulator ──────────────────────────────────
-let _pathAmbition = 'balanced';
-function setAmbition(level) {
-  _pathAmbition = level;
-  ['conservative','balanced','ambitious'].forEach(l => {
-    const btn = document.getElementById('amb-'+l);
-    if (!btn) return;
-    btn.className = 'badge border px-4 py-2 text-xs transition-colors ' + (l===level
-      ? 'bg-indigo-900 text-indigo-200 border-indigo-700'
-      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700');
-  });
-}
-
-async function runCareerPaths() {
-  if (!requireResume('paths-error')) return;
-  clearErr('paths-error');
-  const btn = document.getElementById('paths-btn'), t = document.getElementById('paths-btn-text');
-  btn.disabled = true; t.textContent = '⏳ Mapping your future (~30s)...';
-  document.getElementById('paths-results').classList.add('hidden');
-  try {
-    const res = await fetch('/career-path/simulate', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({resume_text: _resumeText, ambition: _pathAmbition})
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed');
-    renderCareerPaths(data.data);
-  } catch(e) { showErr('paths-error', e.message); }
-  finally { btn.disabled = false; t.textContent = '🚀 Simulate My Career Paths'; }
-}
-
-function renderCareerPaths(d) {
-  const PATH_COLORS = ['indigo','violet','teal'];
-  let html = '';
-
-  // Current position card
-  if (d.current_role) {
-    html += `<div class="bg-slate-900 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
-      <div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center text-lg">📍</div>
-      <div><div class="text-xs text-slate-400">You are here</div><div class="font-bold text-white">${x(d.current_role)}</div><div class="text-xs text-slate-400">${x(d.current_level||'')}</div></div>
-    </div>`;
-  }
-
-  // Path cards
-  (d.paths||[]).forEach((path, pi) => {
-    const col = PATH_COLORS[pi] || 'indigo';
-    const diffColor = path.difficulty==='Easy'?'text-emerald-400':path.difficulty==='Hard'?'text-rose-400':'text-amber-400';
-    html += `<div class="border border-${col}-800 rounded-2xl overflow-hidden">
-      <!-- Path header -->
-      <div class="bg-${col}-950 border-b border-${col}-800 px-5 py-4">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="font-bold text-white text-lg">${x(path.path_name||'')}</div>
-            <div class="text-sm text-slate-300 mt-0.5">${x(path.tagline||'')}</div>
-          </div>
-          <div class="flex flex-col items-end gap-1 flex-shrink-0">
-            <span class="badge bg-${col}-900 text-${col}-200">${x(path.type||'')}</span>
-            <span class="text-xs ${diffColor}">${x(path.difficulty||'')} path</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timeline -->
-      <div class="bg-slate-900 p-5">
-        <div class="relative">
-          <!-- Vertical line -->
-          <div class="absolute left-4 top-6 bottom-0 w-0.5 bg-slate-700"></div>
-
-          <!-- Step 1: Next role -->
-          ${path.next_role ? `<div class="flex gap-4 mb-6 relative">
-            <div class="w-8 h-8 bg-${col}-700 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">1</div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap mb-1">
-                <span class="font-semibold text-white">${x(path.next_role.title||'')}</span>
-                <span class="badge bg-emerald-900 text-emerald-300">${x(path.next_role.timeline||'')}</span>
-                ${path.next_role.salary_jump?`<span class="badge bg-amber-900 text-amber-300">${x(path.next_role.salary_jump)}</span>`:''}
-              </div>
-              ${path.next_role.skills_to_add?.length?`<div class="flex flex-wrap gap-1 mb-2">${path.next_role.skills_to_add.map(s=>`<span class="badge bg-slate-800 text-slate-300">+ ${x(s)}</span>`).join('')}</div>`:''}
-              ${path.next_role.how_to_get_there?`<div class="text-xs text-slate-400 bg-slate-800 rounded-lg px-3 py-2">${x(path.next_role.how_to_get_there)}</div>`:''}
-            </div>
-          </div>` : ''}
-
-          <!-- Step 2: Milestone -->
-          ${path.milestone_role ? `<div class="flex gap-4 mb-6 relative">
-            <div class="w-8 h-8 bg-${col}-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">2</div>
-            <div class="flex-1">
-              <div class="flex items-center gap-2 flex-wrap mb-1">
-                <span class="font-semibold text-white">${x(path.milestone_role.title||'')}</span>
-                <span class="badge bg-indigo-900 text-indigo-300">${x(path.milestone_role.timeline||'')}</span>
-                ${path.milestone_role.salary_range?`<span class="badge bg-emerald-900 text-emerald-300">${x(path.milestone_role.salary_range)}</span>`:''}
-              </div>
-              ${path.milestone_role.skills_to_add?.length?`<div class="flex flex-wrap gap-1">${path.milestone_role.skills_to_add.map(s=>`<span class="badge bg-slate-800 text-slate-300">+ ${x(s)}</span>`).join('')}</div>`:''}
-            </div>
-          </div>` : ''}
-
-          <!-- Step 3: Peak -->
-          ${path.peak_role ? `<div class="flex gap-4 relative">
-            <div class="w-8 h-8 bg-amber-500 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white z-10">🏆</div>
-            <div class="flex-1">
-              <div class="flex items-center gap-2 flex-wrap mb-1">
-                <span class="font-bold text-amber-300">${x(path.peak_role.title||'')}</span>
-                <span class="badge bg-slate-800 text-slate-400">${x(path.peak_role.timeline||'')}</span>
-                ${path.peak_role.salary_range?`<span class="badge bg-amber-900 text-amber-300">${x(path.peak_role.salary_range)}</span>`:''}
-              </div>
-              ${path.peak_role.impact?`<div class="text-xs text-slate-400">${x(path.peak_role.impact)}</div>`:''}
-            </div>
-          </div>` : ''}
-        </div>
-
-        <!-- Companies + Why -->
-        <div class="mt-5 pt-4 border-t border-slate-800 grid md:grid-cols-2 gap-4">
-          ${path.companies_hiring?.length?`<div><div class="text-xs font-semibold text-slate-400 mb-2">🏢 COMPANIES HIRING FOR THIS PATH</div><div class="flex flex-wrap gap-1">${path.companies_hiring.map(c=>`<span class="badge bg-slate-800 text-slate-300">${x(c)}</span>`).join('')}</div></div>`:''}
-          ${path.differentiation?`<div><div class="text-xs font-semibold text-slate-400 mb-2">⚡ WHY THIS BEATS STAYING PUT</div><div class="text-xs text-slate-300">${x(path.differentiation)}</div></div>`:''}
-        </div>
-      </div>
-    </div>`;
-  });
-
-  // Action items
-  if (d.skills_that_open_most_doors?.length) {
-    html += `<div class="bg-slate-900 border border-slate-800 rounded-xl p-5"><h4 class="text-sm font-semibold text-sky-400 mb-3">🗝️ Skills That Open The Most Doors</h4><div class="flex flex-wrap gap-2">${d.skills_that_open_most_doors.map(s=>`<span class="badge bg-sky-900 text-sky-200 px-3 py-1.5">${x(s)}</span>`).join('')}</div></div>`;
-  }
-  if (d.one_move_this_week) {
-    html += `<div class="bg-indigo-950 border border-indigo-800 rounded-xl p-5 flex gap-3"><span class="text-2xl flex-shrink-0">⚡</span><div><div class="text-xs font-semibold text-indigo-400 mb-1">DO THIS WEEK</div><div class="text-sm text-white font-medium">${x(d.one_move_this_week)}</div></div></div>`;
-  }
-
-  document.getElementById('paths-results').innerHTML = html;
-  document.getElementById('paths-results').classList.remove('hidden');
-  document.getElementById('paths-results').scrollIntoView({behavior:'smooth',block:'start'});
-}
 </script>
-
-<!-- ======= LINKEDIN TAB ======= -->
-<div id="pane-linkedin" class="pane hidden max-w-3xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">LinkedIn Outreach Generator</h2>
-  <p class="text-slate-400 text-sm mb-5">Generate personalized recruiter messages that actually get replies — 3 variants, ready to copy.</p>
-  <div class="grid md:grid-cols-2 gap-3 mb-4">
-    <input id="li-name" type="text" placeholder="Recruiter name (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-    <input id="li-company" type="text" placeholder="Company name (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-    <input id="li-role" type="text" placeholder="Target role (e.g. Operations Manager)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-    <select id="li-context" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
-      <option value="cold_outreach">Cold Outreach</option>
-      <option value="referral_ask">Referral Request</option>
-      <option value="follow_up">Post-Application Follow-up</option>
-    </select>
-  </div>
-  <button onclick="runLinkedIn()" id="li-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-4">
-    <span id="li-btn-text">🔗 Generate Messages</span>
-  </button>
-  <div id="li-results" class="hidden space-y-3"></div>
-  <div id="li-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= SALARY TAB ======= -->
-<div id="pane-salary" class="pane hidden max-w-3xl mx-auto px-5 py-6">
-  <h2 class="text-xl font-bold text-white mb-1">Salary Intelligence</h2>
-  <p class="text-slate-400 text-sm mb-5">Know your market worth — floor, target, and ceiling — before you negotiate.</p>
-  <div class="grid md:grid-cols-2 gap-3 mb-4">
-    <input id="sal-role" type="text" placeholder="Target role (optional)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-    <input id="sal-location" type="text" placeholder="Location (e.g. Mumbai, Remote India)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-  </div>
-  <button onclick="runSalaryIntel()" id="sal-btn" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-4">
-    <span id="sal-btn-text">💰 Analyze My Market Value</span>
-  </button>
-  <div id="sal-results" class="hidden space-y-3"></div>
-  <div id="sal-error" class="hidden mt-3 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
-<!-- ======= TRACKER TAB ======= -->
-<div id="pane-tracker" class="pane hidden max-w-4xl mx-auto px-5 py-6" onshow="renderTracker()">
-  <h2 class="text-xl font-bold text-white mb-1">Application Tracker</h2>
-  <p class="text-slate-400 text-sm mb-5">Track every job you apply to — status, follow-ups, notes. Never lose track of an opportunity.</p>
-  <div id="tracker-stats"></div>
-  <!-- Add form -->
-  <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-4">
-    <h3 class="text-sm font-semibold text-white mb-3">+ Add Application</h3>
-    <div class="grid md:grid-cols-2 gap-3 mb-3">
-      <input id="app-title" type="text" placeholder="Job title *" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-      <input id="app-company" type="text" placeholder="Company *" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-      <input id="app-url" type="url" placeholder="Job URL (optional)" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-      <input id="app-notes" type="text" placeholder="Notes (optional)" class="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"/>
-    </div>
-    <button onclick="addApplication()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">Add Application</button>
-    <div id="tracker-error" class="hidden mt-2 text-rose-300 text-xs"></div>
-  </div>
-  <div id="tracker-list" class="space-y-3"></div>
-</div>
-
-<!-- ======= CAREER PATHS TAB ======= -->
-<div id="pane-paths" class="pane hidden max-w-5xl mx-auto px-5 py-8">
-  <div class="flex items-start justify-between mb-2">
-    <div>
-      <h2 class="text-2xl font-bold text-white mb-1">🚀 Career Path Simulator</h2>
-      <p class="text-slate-400 text-sm">See where you can go from here — 3 realistic paths, with step-by-step progression, salary jumps, and skills to add.</p>
-    </div>
-  </div>
-  <div class="flex gap-2 mt-4 mb-6">
-    <button onclick="setAmbition('conservative')" id="amb-conservative" class="badge bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 text-xs hover:bg-slate-700 transition-colors">🛡️ Conservative</button>
-    <button onclick="setAmbition('balanced')"     id="amb-balanced"     class="badge bg-indigo-900 text-indigo-200 border border-indigo-700 px-4 py-2 text-xs">⚖️ Balanced</button>
-    <button onclick="setAmbition('ambitious')"    id="amb-ambitious"    class="badge bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 text-xs hover:bg-slate-700 transition-colors">🔥 Ambitious</button>
-  </div>
-  <button onclick="runCareerPaths()" id="paths-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors mb-6">
-    <span id="paths-btn-text">🚀 Simulate My Career Paths</span>
-  </button>
-  <div id="paths-results" class="hidden space-y-6"></div>
-  <div id="paths-error" class="hidden mt-4 bg-rose-950 border border-rose-800 rounded-xl p-4 text-rose-300 text-sm"></div>
-</div>
-
 </body>
 </html>
